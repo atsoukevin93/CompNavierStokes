@@ -98,13 +98,13 @@ U1 = CellVariable(name='$u_1$', mesh=mesh, value=1., hasOld=True)
 # U1.setValue(1, where=x >= 0.5)
 # U1.setValue((np.sqrt(2))**(1./gamma), where=x < 0.5)
 
-# U1.setValue(1, where=x >= 0.7)
-# U1.setValue(1, where=x < 0.5)
-# U1.setValue((np.sqrt(2))**(1./gamma), where=(x > 0.5) & (x < 0.7))
+U1.setValue(1, where=x >= 0.7)
+U1.setValue(1, where=x < 0.5)
+U1.setValue((np.sqrt(2))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 # U1.setValue(np.exp(-((x-0.5)**2)/(2 * 0.005)))
 
-U1.setValue(np.exp(-((x-0.25)**2)/(2 * 0.005)) + np.exp(-((x-0.75)**2)/(2 * 0.005)))
+# U1.setValue(np.exp(-((x-0.25)**2)/(2 * 0.005)) + np.exp(-((x-0.75)**2)/(2 * 0.005)))
 
 U2 = CellVariable(name='$u_2$', mesh=mesh, value=0., hasOld=True)
 
@@ -112,7 +112,7 @@ Flux1 = CellVariable(name="\mathcal{F_1}", mesh=mesh, value=0.)
 Flux2 = CellVariable(name="\mathcal{F_2}", mesh=mesh, value=0.)
 
 dt1 = 0.0001
-duration = 10
+duration = 100
 Nt = int(duration / dt1) + 1
 dt = dt1
 
@@ -125,7 +125,7 @@ dt = dt1
 
 # Flux
 def Fe(x):
-    return np.array([x[1], ((x[1]**2)/x[0])+c*(x[0])**gamma])
+    return np.array([x[1], (((x[1])**2)/x[0])+c*(x[0])**gamma])
 
 
 def centered_mean(x,y):
@@ -141,15 +141,15 @@ def harmonic_mean(x,y):
 # fig = plt.figure();
 # fig.canvas.draw();
 
-sp, axes = plt.subplots(1, 2)
-
-Rho = Matplotlib1DViewer(vars=U1, axes=axes[0],
-                         interpolation='spline16', figaspect='auto')
-
-Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], datamin=0.000,
-                               interpolation='spline16', figaspect='auto')
-
-viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
+# sp, axes = plt.subplots(1, 2)
+#
+# Rho = Matplotlib1DViewer(vars=U1, axes=axes[0],
+#                          interpolation='spline16', figaspect='auto')
+#
+# Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], datamin=0.000,
+#                                interpolation='spline16', figaspect='auto')
+#
+# viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
 
 tps = 0.
 while tps <= duration:
@@ -180,10 +180,6 @@ while tps <= duration:
 
     Flux[:, :] = Flux_plus[:, CellFaces[1]] - Flux_moins[:, CellFaces[0]]
 
-
-
-    print('time step: ', dt)
-
     Unew = U - (dt/dx)*Flux
 
     U1.setValue(Unew[0])
@@ -195,10 +191,12 @@ while tps <= duration:
     dt = np.min([dt1, 0.5 * dx / (2. * np.max(lambdas.value))])
 
     tps = tps + dt
+
+    print('time: ', tps)
     # if np.isnan(dt):
     #     break
 
-    viewers.plot()
+    # viewers.plot()
 
 
 
