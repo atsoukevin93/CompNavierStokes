@@ -87,14 +87,19 @@ extCellFaces = mesh.cellFaceIDs[:,eexT]
 
 # NS barotrope
 c = 1.
-gamma = 2.
+gamma = 1.4
 
 
 
 # Variables
 U1 = CellVariable(name='$u_1$', mesh=mesh, value=1., hasOld=True)
+# U1.setValue(1, where=x >= 0.5)
+# U1.setValue((np.sqrt(2))**(1./gamma), where=x < 0.5)
+
+U1.setValue(1, where=x >= 0.7)
 U1.setValue(1, where=x < 0.5)
-U1.setValue((np.sqrt(2))**(1./gamma), where=x >= 0.5)
+U1.setValue((np.sqrt(2))**(1./gamma), where=(x > 0.5) & (x < 0.7))
+
 # U1.setValue(np.exp(-(x-0.5)**2))
 
 U2 = CellVariable(name='$u_2$', mesh=mesh, value=0., hasOld=True)
