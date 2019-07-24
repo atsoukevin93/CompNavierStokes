@@ -3,38 +3,38 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 #Maillage 1D
-# L = 1.0
-# nx = 100
-# dx = L / nx
-#
-# mesh = Grid1D(dx, nx)
-# x, = mesh.cellCenters
+L = 1.0
+nx = 100
+dx = L / nx
+
+mesh = Grid1D(dx, nx)
+x, = mesh.cellCenters
 # XF, =mesh.faceCenters
 # Nvol=mesh.numberOfCells
 # Nface=mesh.numberOfFaces
 
 # ----------------------------------- A 2D Unstructured Mesh----------------------
-Lx = 40.0
-Ly = 80.
-nx = 40
-dx = Lx / nx
-
-cellSize = 1.5
-radius = Lx
-mesh = Gmsh2D('''
-        cellSize = %(cellSize)g;
-        radius   = %(radius)g;
-        Point(2) = {-radius, radius, 0, cellSize};
-        Point(3) = {2*radius, radius, 0, cellSize};
-        Point(4) = {2*radius, -radius, 0, cellSize};
-        Point(5) = {-radius, -radius, 0, cellSize};
-        Line(6) = {2, 3};
-        Line(7) = {3, 4};
-        Line(8) = {4, 5};
-        Line(9) = {5, 2};
-        Line Loop(10) = {6, 7, 8, 9};
-        Plane Surface(11) = {10};
-         ''' % locals())
+# Lx = 40.0
+# Ly = 80.
+# nx = 40
+# dx = Lx / nx
+#
+# cellSize = 1.5
+# radius = Lx
+# mesh = Gmsh2D('''
+#         cellSize = %(cellSize)g;
+#         radius   = %(radius)g;
+#         Point(2) = {-radius, radius, 0, cellSize};
+#         Point(3) = {2*radius, radius, 0, cellSize};
+#         Point(4) = {2*radius, -radius, 0, cellSize};
+#         Point(5) = {-radius, -radius, 0, cellSize};
+#         Line(6) = {2, 3};
+#         Line(7) = {3, 4};
+#         Line(8) = {4, 5};
+#         Line(9) = {5, 2};
+#         Line Loop(10) = {6, 7, 8, 9};
+#         Plane Surface(11) = {10};
+#          ''' % locals())
 # ---------------------------------- A 2D Structured Mesh ------------------------------------------
 
 # cellSize = 0.5
@@ -63,7 +63,7 @@ mesh = Gmsh2D('''
 
 # mesh = Grid2D(dx, dx, nx, nx, Lx=Lx, Ly=Ly)
 
-x, y = mesh.cellCenters
+# x, y = mesh.cellCenters
 
 # -------------------------------------------------------------------------------------------------
 nVol = mesh.numberOfCells
@@ -85,10 +85,12 @@ TopFacesIds = numerix.where(np.logical_and(FaceNormalsext[0, ] == 0., FaceNormal
 mesF = mesh._faceAreas
 
 # Cells
-einT = mesh._interiorCellIDs[0]
-eexT = mesh._exteriorCellIDs[0]
-intCellFaces = mesh.cellFaceIDs[:, einT]
-extCellFaces = mesh.cellFaceIDs[:, eexT]
+# einT = mesh._interiorCellIDs[0]
+einT = np.arange(1, nVol-1, 1)
+eexT = np.array([0, nVol-1])
+
+intCellFaces = mesh.cellFaceIDs[einT]
+extCellFaces = mesh.cellFaceIDs[eexT]
 #Constantes
 
 #NS barotrope
@@ -106,7 +108,8 @@ u[1] = np.ones(nVol)
 Rho = CellVariable(name='$\\rho$', mesh=mesh, value=0, hasOld=True)
 Rs = 1
 # Rho.setValue(numerix.exp(-((x)**2)/(2*Rs))/(numerix.sqrt(2*numerix.pi*Rs)))
-Rho.setValue(numerix.exp(-((x-40.)**2 + (y)**2)/(2*Rs)))
+# Rho.setValue(numerix.exp(-((x-40.)**2 + (y)**2)/(2*Rs)))
+Rho.setValue(numerix.exp(-((x-40.)**2 )/(2*Rs)))
 
 Rho_u = CellVariable(name='$\\rho u $', mesh=mesh, value=0., rank=1, hasOld=True)
 Rho_u.setValue(Rho*u)
