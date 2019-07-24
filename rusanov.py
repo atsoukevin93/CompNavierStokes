@@ -7,7 +7,7 @@ L = 1.0
 nx = 100
 dx = L / nx
 
-mesh = Grid1D(dx, nx)
+mesh = PeriodicGrid1D(dx, nx)
 x, = mesh.cellCenters
 # XF, =mesh.faceCenters
 # Nvol=mesh.numberOfCells
@@ -70,194 +70,102 @@ nVol = mesh.numberOfCells
 nFaces = mesh.numberOfFaces
 
 # Faces
+FacesIds = np.arange(0, nFaces, 1)
 intFaces = mesh.interiorFaceIDs
 extFaces = np.delete(numerix.arange(0, nFaces, 1), intFaces)
 intFacesCells = mesh.faceCellIDs[:, intFaces]
 extFacesCells = mesh.faceCellIDs[:, extFaces]
-
-# FaceNormals = mesh.faceNormals.T
-# FaceNormalsext = FaceNormals[extFaces]
-# FaceNormalsint = FaceNormals[intFaces]
-
-#LeftFacesIds = numerix.where(np.logical_and(FaceNormalsext[0, ] == -1., FaceNormalsext[1, ] == 0.))[0]
-#RightFacesIds = numerix.where(np.logical_and(FaceNormalsext[0, ] == 1., FaceNormalsext[1, ] == 0.))[0]
-# DownFacesIds = numerix.where(np.logical_and(FaceNormalsext[0, ] == 0., FaceNormalsext[1, ] == -1.))[0]
-# TopFacesIds = numerix.where(np.logical_and(FaceNormalsext[0, ] == 0., FaceNormalsext[1, ] == 1.))[0]
-
-#mesF = mesh._faceAreas
+FacesCells = mesh.faceCellIDs
 
 # Cells
-# einT = mesh._interiorCellIDs[0]
 einT = np.arange(1, nVol-1, 1)
 eexT = np.array([0, nVol-1])
 
+CellFaces = mesh.cellFaceIDs
 intCellFaces = mesh.cellFaceIDs[:,einT]
 extCellFaces = mesh.cellFaceIDs[:,eexT]
-#Constantes
 
-#NS barotrope
-c=1
-gamma=2
-
+# NS barotrope
+c = 1.
+gamma = 2.
 
 
-#Variables
-U1= CellVariable(name='$u_1$', mesh=mesh, value=1., hasOld=True)
-U2= CellVariable(name='$u_2$', mesh=mesh, value=1., hasOld=True)
-U = np.array([U1,U2])
 
-# u.setValue(np.ones(nVol))
-# U[0] = np.ones(nVol)
-# U[1] = np.ones(nVol)
+# Variables
+U1 = CellVariable(name='$u_1$', mesh=mesh, value=1., hasOld=True)
+U1.setValue(1, where=x < 0.5)
+U1.setValue((np.sqrt(2))**(1./gamma), where=x >= 0.5)
+# U1.setValue(np.exp(-(x-0.5)**2))
 
-# Rho = CellVariable(name='$\\rho$', mesh=mesh, value=0, hasOld=True)
-# Rs = 1
-# # Rho.setValue(numerix.exp(-((x)**2)/(2*Rs))/(numerix.sqrt(2*numerix.pi*Rs)))
-# # Rho.setValue(numerix.exp(-((x-40.)**2 + (y)**2)/(2*Rs)))
-# Rho.setValue(numerix.exp(-((x-40.)**2 )/(2*Rs)))
-#
-# Rho_u = CellVariable(name='$\\rho u $', mesh=mesh, value=0., rank=1, hasOld=True)
-# Rho_u.setValue(Rho*u)
+U2 = CellVariable(name='$u_2$', mesh=mesh, value=0., hasOld=True)
 
-Flux1_plus = FaceVariable(name="\mathcal{F}_1", mesh=mesh, value=0.)
-Flux2_plus = FaceVariable(name="\mathcal{F}_2", mesh=mesh, value=0.)
-
-Flux1_moins = FaceVariable(name="\mathcal{F'}_1", mesh=mesh, value=0.)
-Flux2_moins = FaceVariable(name="\mathcal{F'}_2", mesh=mesh, value=0.)
-# temp_int_Flux = FaceVariable(name="\mathcal{F}_{in}", mesh=mesh, value=0., rank=1)
-# temp_ext_Flux = FaceVariable(name="\mathcal{F}_{ext}", mesh=mesh, value=0., rank=1)
-# Flux = FaceVariable(name="\mathcal{F}", mesh=mesh, value=0.)
-Flux_plus = np.array([Flux1_plus,Flux2_plus])
-Flux_moins = np.array([Flux1_moins,Flux2_moins])
+Flux1 = CellVariable(name="\mathcal{F_1}", mesh=mesh, value=0.)
+Flux2 = CellVariable(name="\mathcal{F_2}", mesh=mesh, value=0.)
 
 dt = 0.01
-duration = 120
+duration = 10
 Nt = int(duration / dt) + 1
 
 
-# first component of the flux
-def F_1(x, y):
-    return x*y
-
-
-# second component of the flux
-def F_2(x, y):
-    return x*(y**2) + c*(y**gamma)
-
-#Flux
+# Flux
 def Fe(x):
     return np.array([x[1],((x[1]**2)/x[0])+c*x[0]**gamma])
 
 # Loop in time
 
 
+# Draw figures
+# fig = plt.figure();
+# fig.canvas.draw();
+sp, axes = plt.subplots(1, 2)
+
+Rho = Matplotlib1DViewer(vars=U1, axes=axes[0],
+                         interpolation='spline16', figaspect='auto')
+
+Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], datamin=0.000,
+                               interpolation='spline16', figaspect='auto')
+
+viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
+
 for n in range(Nt):
     # The construction of the Fluxes
-    temp_Flux = np.zeros((2, 2, nFaces))
-    temp_FluxNormals = np.zeros(( 2, nFaces))
+    U = np.array([U1, U2])
+    Flux = np.array([Flux1, Flux2])
+    lambdas = np.zeros(nVol)
+
     # --------------------------- The interior Faces ------------------
-    lambda1 = (U[1]/U[0])- numerix.sqrt(c*gamma*U[0]**(gamma-1))
+    lambda1 = ((U[1]/U[0])- numerix.sqrt(c*gamma*U[0]**(gamma-1)))
     lambda2 = ((U[1]/U[0]) + numerix.sqrt(c*gamma*U[0]**(gamma-1)))
-    lambdas_int = numerix.maximum(numerix.maximum(lambda1[intFacesCells[0]],lambda1[intFacesCells[1]]),
-                                  numerix.maximum(lambda2[intFacesCells[0]],lambda2[intFacesCells[1]]))
 
-    # Flux1[:,intFaces] = (((F_1(Rho[intFacesCells[0]], u[:,intFacesCells[0]]) + F_1(Rho[intFacesCells[1]], u[:,intFacesCells[1]]))/2.)
-    #                - lambdas_int * (Rho[intFacesCells[1]] - Rho[intFacesCells[0]])/2.)
-    # Flux2[:,intFaces] = (((F_2(Rho[intFacesCells[0]], u[:,intFacesCells[0]]) + F_2(Rho[intFacesCells[1]], u[:,intFacesCells[1]]))/2.)
-    #                - lambdas_int * (Rho[intFacesCells[1]] - Rho[intFacesCells[0]])/2.)
+    lambdas = numerix.maximum(numerix.maximum(lambda1[FacesCells[0]], lambda1[FacesCells[1]]),
+                              numerix.maximum(lambda2[FacesCells[0]], lambda2[FacesCells[1]]))
 
-    Flux_plus[:,intFaces]= (Fe(U[:,intFacesCells[0]]) + Fe(U[:,intFacesCells[1]]))/2. - lambdas_int * (U[:,intFacesCells[1]] - U[:,intFacesCells[0]])/2.
-    Flux_plus[:,intFaces]= (Fe(U[:,intFacesCells[0]]) + Fe(U[:,intFacesCells[1]]))/2. - lambdas_int * (U[:,intFacesCells[0]] - U[:,intFacesCells[1]])/2.
+    Flux_plus = (Fe(U[:, FacesCells[0]]) + Fe(U[:, FacesCells[1]]))/2. - lambdas * (U[:, FacesCells[1]] - U[:, FacesCells[0]])/2.
 
-    temp_Flux[0][:, intFaces] = Flux1[:, intFaces]
-    temp_Flux[1][:, intFaces] = Flux2[:, intFaces]
-    temp_int_Flux = np.array([temp_Flux[0][:, intFaces],temp_Flux[1][:, intFaces]])
-    temp_int_FluxNormals = mesF[intFaces] * numerix.dot(temp_int_Flux, mesh.faceNormals[:, intFaces])
-    temp_FluxNormals[:,intFaces] = temp_int_FluxNormals
+    # shift ids to the left for the fluxes at i-0.5
+    Flux_moins = (Fe(U[:, FacesCells[0]-1]) + Fe(U[:, FacesCells[1]-1]))/2. - lambdas * (U[:, FacesCells[1]-1] - U[:, FacesCells[0]-1])/2.
 
-    # The sum of the fluxes on the faces of the interior control
-    # np.where()
-    Flux[:,einT] = temp_FluxNormals[:,intCellFaces[0]] + temp_FluxNormals[:,intCellFaces[1]] + temp_FluxNormals[:,intCellFaces[2]]
+    temp_Flux = Flux_plus - Flux_moins
 
-    # --------------------------- The exterior Faces  with periodic Boundary Conditions------------------
-    lambdas_ext_left = numerix.maximum(numerix.maximum(lambda1[:,extFacesCells[1, RightFacesIds]],
-                                       lambda1[:,extFacesCells[0, LeftFacesIds]]),
-                                       numerix.maximum(lambda2[:,extFacesCells[1, RightFacesIds]],
-                                       lambda2[:,extFacesCells[0, LeftFacesIds]]))
+    Flux[:, :] = Flux_plus[:, CellFaces[1]] - Flux_moins[:, CellFaces[0]]
 
-    lambdas_ext_right = numerix.maximum(numerix.maximum(lambda1[:,extFacesCells[0, RightFacesIds]],
-                                       lambda1[:,extFacesCells[1, LeftFacesIds]]),
-                                        numerix.maximum(lambda2[:,extFacesCells[0, RightFacesIds]],
-                                       lambda2[:,extFacesCells[1, LeftFacesIds]]))
+    dt = dx/np.max(lambdas)
 
-    lambdas_ext_top = numerix.maximum(numerix.maximum(lambda1[:,extFacesCells[0, TopFacesIds]],
-                                       lambda1[:,extFacesCells[1, DownFacesIds]]),
-                                      numerix.maximum(lambda2[:,extFacesCells[0, TopFacesIds]],
-                                       lambda2[:,extFacesCells[1, DownFacesIds]]))
+    print(dt)
 
-    lambdas_ext_down = numerix.maximum(numerix.maximum(lambda1[:,extFacesCells[0, DownFacesIds]],
-                                       lambda1[:,extFacesCells[1, TopFacesIds]]),
-                                       numerix.maximum(lambda2[:,extFacesCells[0, DownFacesIds]],
-                                       lambda2[:,extFacesCells[1, TopFacesIds]]))
+    Unew = U - (dt/dx)*Flux
 
-    Flux1[:,LeftFacesIds] = (((F_1(Rho[extFacesCells[0, RightFacesIds]], u[:,extFacesCells[0, RightFacesIds]]) + F_1(Rho[extFacesCells[1, LeftFacesIds]], u[:,extFacesCells[1, LeftFacesIds]]))/2.)
-                   - lambdas_ext_left * (Rho[extFacesCells[1, LeftFacesIds]] - Rho[extFacesCells[0, RightFacesIds]])/2.)
-    Flux1[:,RightFacesIds] = (((F_1(Rho[extFacesCells[0, LeftFacesIds]], u[:,extFacesCells[0, LeftFacesIds]]) + F_1(Rho[extFacesCells[1, RightFacesIds]], u[:,extFacesCells[1, RightFacesIds]]))/2.)
-                   - lambdas_ext_right * (Rho[extFacesCells[1, RightFacesIds]] - Rho[extFacesCells[0, LeftFacesIds]])/2.)
-    Flux1[:,TopFacesIds] = (((F_1(Rho[extFacesCells[0, TopFacesIds]], u[:,extFacesCells[0, TopFacesIds]]) + F_1(Rho[extFacesCells[1, DownFacesIds]], u[:,extFacesCells[1, DownFacesIds]]))/2.)
-                   - lambdas_ext_top * (Rho[extFacesCells[1, DownFacesIds]] - Rho[extFacesCells[0, TopFacesIds]])/2.)
-    Flux1[:,TopFacesIds] = (((F_1(Rho[extFacesCells[0, TopFacesIds]], u[:,extFacesCells[0, TopFacesIds]]) + F_1(Rho[extFacesCells[1, DownFacesIds]], u[:,extFacesCells[1, DownFacesIds]]))/2.)
-                   - lambdas_ext_down * (Rho[extFacesCells[1, DownFacesIds]] - Rho[extFacesCells[0, TopFacesIds]])/2.)
+    U1.setValue(Unew[0])
+    U2.setValue(Unew[1])
 
-    Flux2[:,LeftFacesIds] = (((F_2(Rho[extFacesCells[0, RightFacesIds]], u[:,extFacesCells[0, RightFacesIds]]) + F_2(
-        Rho[extFacesCells[1, LeftFacesIds]], u[:,extFacesCells[1, LeftFacesIds]])) / 2.)
-                                 - lambdas_ext_left * (
-                                 Rho[extFacesCells[1, LeftFacesIds]] - Rho[extFacesCells[0, RightFacesIds]]) / 2.)
-    Flux2[:,RightFacesIds] = (((F_2(Rho[extFacesCells[0, LeftFacesIds]], u[:,extFacesCells[0, LeftFacesIds]]) + F_2(
-        Rho[extFacesCells[1, RightFacesIds]], u[:,extFacesCells[1, RightFacesIds]])) / 2.)
-                                  - lambdas_ext_right * (
-                                  Rho[extFacesCells[1, RightFacesIds]] - Rho[extFacesCells[0, LeftFacesIds]]) / 2.)
-    Flux2[:,TopFacesIds] = (((F_2(Rho[extFacesCells[0, TopFacesIds]], u[:,extFacesCells[0, TopFacesIds]]) + F_2(
-        Rho[extFacesCells[1, DownFacesIds]], u[:,extFacesCells[1, DownFacesIds]])) / 2.)
-                                - lambdas_ext_top * (
-                                Rho[extFacesCells[1, DownFacesIds]] - Rho[extFacesCells[0, TopFacesIds]]) / 2.)
-    Flux2[:,TopFacesIds] = (((F_2(Rho[extFacesCells[0, TopFacesIds]], u[:,extFacesCells[0, TopFacesIds]]) + F_2(
-        Rho[extFacesCells[1, DownFacesIds]], u[:,extFacesCells[1, DownFacesIds]])) / 2.)
-                                - lambdas_ext_down * (
-                                Rho[extFacesCells[1, DownFacesIds]] - Rho[extFacesCells[0, TopFacesIds]]) / 2.)
+    U1.updateOld()
+    U2.updateOld()
 
-    temp_Flux[0][:, extFaces] = Flux1[:, extFaces]
-    temp_Flux[1][:, extFaces] = Flux2[:, extFaces]
-    temp_ext_Flux = np.array([temp_Flux[0][:, extFaces], temp_Flux[1][:, extFaces]])
-    temp_ext_FluxNormals = mesF[extFaces] * numerix.dot(temp_ext_Flux, mesh.faceNormals[:, extFaces])
-    temp_FluxNormals[:, extFaces] = temp_ext_FluxNormals
-
-    # temp_ext_Flux = np.array([Flux1.value[:, extFaces], Flux2.value[:, extFaces]])
-    # temp_ext_FluxNormals = mesF[extFaces] * numerix.dot(temp_ext_Flux, mesh.faceNormals[:, extFaces])
-
-    # The sum of the fluxes on the faces of the interior control
-    Flux[:,eexT] = numerix.sum(temp_ext_FluxNormals[extCellFaces], axis=0)
-
-    Unew = np.array([Rho, Rho_u]) - (dt/dx)*Flux
-
-    Rho.setValue(Unew[0])
-    Rho_u.setValue(Unew[1])
-    u.setValue(Rho_u/Rho)
-    Rho.updateOld()
-    Rho_u.updateOld()
-    u.updateOld()
+    viewers.plot()
 
 
 
-# #Valeurs propres
-# def eig(x):
-#     return np.array([(x[1]/x[0])-np.sqrt(gamma*c*x[0]**(gamma-1)),(x[1]/x[0])+np.sqrt(gamma*c*x[0]**(gamma-1))])
-#
 
-
-#Calcul du flux
-#def Flux(x,y):
- #   return ((Fe(y)-Fe(x))/2)-max()
 
 
 
