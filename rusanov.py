@@ -102,7 +102,7 @@ U2 = CellVariable(name='$u_2$', mesh=mesh, value=0., hasOld=True)
 Flux1 = CellVariable(name="\mathcal{F_1}", mesh=mesh, value=0.)
 Flux2 = CellVariable(name="\mathcal{F_2}", mesh=mesh, value=0.)
 
-dt = 0.01
+dt = 0.00001
 duration = 10
 Nt = int(duration / dt) + 1
 
@@ -149,9 +149,9 @@ for n in range(Nt):
 
     Flux[:, :] = Flux_plus[:, CellFaces[1]] - Flux_moins[:, CellFaces[0]]
 
-    dt = dx/np.max(lambdas)
+    # dt = dx/np.max(lambdas)
 
-    print(dt)
+    # print(dt)
 
     Unew = U - (dt/dx)*Flux
 
