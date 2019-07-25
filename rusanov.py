@@ -6,7 +6,7 @@ from fractions import Fraction
 # plt.switch_backend('qt5agg')
 #Maillage 1D
 L = 1.0
-nx = 10000
+nx = 100
 dx = L / nx
 
 mesh = PeriodicGrid1D(dx, nx)
@@ -130,8 +130,8 @@ dt = dt1
 
 # Flux
 def Fe(x):
-    # return np.array([x[1], (((x[1])**2)/x[0])+c*(x[0])**gamma])
-    return x
+     return np.array([x[1], (((x[1])**2)/x[0])+c*(x[0])**gamma])
+    # return x
 
 
 def centered_mean(x,y):
@@ -187,8 +187,8 @@ while tps <= duration:
 
     # print(max_lambdas)
 
-    tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - (dx/dt) * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)
-    # tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - max_lambdas * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)
+    # tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - (dx/dt) * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)
+    tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - max_lambdas * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)
 
 
     # shift ids to the left for the fluxes at i-0.5
@@ -197,16 +197,13 @@ while tps <= duration:
     # temp_Flux = Flux_plus - Flux_moins
 
     # Flux = Flux_plus[:, CellFaces[1]] - Flux_moins[:, CellFaces[0]]
-    Flux[0] = tem_Flux[0] - shiftg(tem_Flux[0])
-    Flux[1] = tem_Flux[1] - shiftg(tem_Flux[1])
+    Flux[0] = shiftg(tem_Flux[0]) - tem_Flux[0]
+    Flux[1] = shiftg(tem_Flux[1]) - tem_Flux[1]
 
-    Unew = U - (dt/dx)*Flux[:, 1:nFaces]
+    Unew = U - (dt/dx)*Flux[:, 0:nFaces-1]
 
     U1.setValue(Unew[0])
     U2.setValue(Unew[1])
-
-    U1.updateOld()
-    U2.updateOld()
 
     dt = np.min([dt1, 0.8 * dx / (np.max(max_lambdas.value))])
 
