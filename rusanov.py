@@ -6,7 +6,7 @@ from fractions import Fraction
 # plt.switch_backend('qt5agg')
 #Maillage 1D
 L = 1.0
-nx = 20000
+nx = 10000
 dx = L / nx
 
 mesh = PeriodicGrid1D(dx, nx)
@@ -78,6 +78,7 @@ extFaces = np.delete(numerix.arange(0, nFaces, 1), intFaces)
 intFacesCells = mesh.faceCellIDs[:, intFaces]
 extFacesCells = mesh.faceCellIDs[:, extFaces]
 FacesCells = mesh.faceCellIDs
+FacesCells[1][nFaces-1] = 0
 
 # Cells
 einT = np.arange(1, nVol-1, 1)
@@ -95,9 +96,12 @@ gamma = 2.
 
 # Variables
 U1 = CellVariable(name='$u_1$', mesh=mesh, value=1., hasOld=True)
+
 # U1.setValue(1, where=x >= 0.5)
 # U1.setValue((np.sqrt(2))**(1./gamma), where=x < 0.5)
-
+# test = 2.*np.ones(nVol)
+# test[np.arange(1, nVol, 2)] = 1.
+# U1.setValue(test)
 U1.setValue(1., where=x >= 0.7)
 U1.setValue(1., where=x < 0.5)
 U1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
@@ -108,10 +112,11 @@ U1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 U2 = CellVariable(name='$u_2$', mesh=mesh, value=0., hasOld=True)
 
-Flux1 = CellVariable(name="\mathcal{F_1}", mesh=mesh, value=0.)
-Flux2 = CellVariable(name="\mathcal{F_2}", mesh=mesh, value=0.)
 
-dt1 = 0.0001
+Flux1 = FaceVariable(name="\mathcal{F_1}", mesh=mesh, value=0.)
+Flux2 = FaceVariable(name="\mathcal{F_2}", mesh=mesh, value=0.)
+
+dt1 = 1e-3
 duration = 100
 Nt = int(duration / dt1) + 1
 dt = dt1
@@ -125,7 +130,8 @@ dt = dt1
 
 # Flux
 def Fe(x):
-    return np.array([x[1], (((x[1])**2)/x[0])+c*(x[0])**gamma])
+    # return np.array([x[1], (((x[1])**2)/x[0])+c*(x[0])**gamma])
+    return x
 
 
 def centered_mean(x,y):
@@ -136,20 +142,29 @@ def harmonic_mean(x,y):
     return 2*(x*y)/(x + y)
 # Loop in time
 
+#shift
+def shiftg(x):
+    b=len(x)
+    return np.concatenate([x[np.arange(1, b, 1)], np.array([x[0]])])
+
+def shiftd(x):
+    b=len(x)
+    return x[np.arange(-1, b-1, 1)]
 
 # Draw figures
 # fig = plt.figure();
 # fig.canvas.draw();
 
-# sp, axes = plt.subplots(1, 2)
-#
-# Rho = Matplotlib1DViewer(vars=U1, axes=axes[0],
-#                          interpolation='spline16', figaspect='auto')
-#
-# Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], datamin=0.000,
-#                                interpolation='spline16', figaspect='auto')
-#
-# viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
+
+sp, axes = plt.subplots(1, 2)
+
+Rho = Matplotlib1DViewer(vars=U1, axes=axes[0],
+                         interpolation='spline16', figaspect='auto')
+
+Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], datamin=0.000,
+                               interpolation='spline16', figaspect='auto')
+
+viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
 
 tps = 0.
 while tps <= duration:
@@ -160,27 +175,32 @@ while tps <= duration:
     # The construction of Rusanov Fluxes
     U = np.array([U1, U2])
     Flux = np.array([Flux1, Flux2])
-    lambdas = np.zeros(nVol)
+    # max_lambdas = np.zeros(nVol)
+    max_lambdas = np.ones(nFaces)
 
     # --------------------------- The interior Faces ------------------
-    lambda1 = 2*((U2/U1) - numerix.sqrt(c*gamma*(U1)**(gamma-1)))
-    lambda2 = 2*((U2/U1) + numerix.sqrt(c*gamma*(U1)**(gamma-1)))
+    lambda1 = np.abs((U2/U1) - numerix.sqrt(c*gamma*(U1)**(gamma-1)))
+    lambda2 = np.abs((U2/U1) + numerix.sqrt(c*gamma*(U1)**(gamma-1)))
 
-    lambdas = numerix.maximum(numerix.maximum(lambda1[FacesCells[0]], lambda1[FacesCells[1]]),
-                              numerix.maximum(lambda2[FacesCells[0]], lambda2[FacesCells[1]]))
+    max_lambdas = numerix.maximum(numerix.maximum(lambda1[FacesCells[0]], lambda1[FacesCells[1]]),
+                                  numerix.maximum(lambda2[FacesCells[0]], lambda2[FacesCells[1]]))
 
-    # print(lambdas)
+    # print(max_lambdas)
 
-    Flux_plus = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - lambdas * (U[:, FacesCells[1]] - U[:, FacesCells[0]])/2.)
+    tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - (dx/dt) * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)
+    # tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - max_lambdas * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)
+
 
     # shift ids to the left for the fluxes at i-0.5
-    Flux_moins = (centered_mean(Fe(U[:, FacesCells[0]-1]), Fe(U[:, FacesCells[1]-1]))) - lambdas * (U[:, FacesCells[1]-1] - U[:, FacesCells[0]-1])/2.
+    # Flux_moins = (centered_mean(Fe(U[:, shiftg(FacesCells[0])]), Fe(U[:, shiftg(FacesCells[1])]))) - max_lambdas * (U[:, shiftg(FacesCells[1])] - U[:, shiftg(FacesCells[0])]) / 2.
 
     # temp_Flux = Flux_plus - Flux_moins
 
-    Flux = Flux_plus[:, CellFaces[1]] - Flux_moins[:, CellFaces[0]]
+    # Flux = Flux_plus[:, CellFaces[1]] - Flux_moins[:, CellFaces[0]]
+    Flux[0] = tem_Flux[0] - shiftg(tem_Flux[0])
+    Flux[1] = tem_Flux[1] - shiftg(tem_Flux[1])
 
-    Unew = U - (dt/dx)*Flux
+    Unew = U - (dt/dx)*Flux[:, 1:nFaces]
 
     U1.setValue(Unew[0])
     U2.setValue(Unew[1])
@@ -188,15 +208,15 @@ while tps <= duration:
     U1.updateOld()
     U2.updateOld()
 
-    dt = np.min([dt1, 0.5 * dx / (2. * np.max(lambdas.value))])
+    dt = np.min([dt1, 0.8 * dx / (np.max(max_lambdas.value))])
 
     tps = tps + dt
 
-    print('time: ', tps)
+    print('time:{0}, dt: {1}'.format(tps, dt))
     # if np.isnan(dt):
     #     break
 
-    # viewers.plot()
+    viewers.plot()
 
 
 
