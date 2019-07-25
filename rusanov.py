@@ -98,9 +98,9 @@ U1 = CellVariable(name='$u_1$', mesh=mesh, value=1., hasOld=True)
 # U1.setValue(1, where=x >= 0.5)
 # U1.setValue((np.sqrt(2))**(1./gamma), where=x < 0.5)
 
-U1.setValue(1, where=x >= 0.7)
-U1.setValue(1, where=x < 0.5)
-U1.setValue((np.sqrt(2))**(1./gamma), where=(x > 0.5) & (x < 0.7))
+U1.setValue(1., where=x >= 0.7)
+U1.setValue(1., where=x < 0.5)
+U1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 # U1.setValue(np.exp(-((x-0.5)**2)/(2 * 0.005)))
 
@@ -178,7 +178,7 @@ while tps <= duration:
 
     # temp_Flux = Flux_plus - Flux_moins
 
-    Flux[:, :] = Flux_plus[:, CellFaces[1]] - Flux_moins[:, CellFaces[0]]
+    Flux = Flux_plus[:, CellFaces[1]] - Flux_moins[:, CellFaces[0]]
 
     Unew = U - (dt/dx)*Flux
 
