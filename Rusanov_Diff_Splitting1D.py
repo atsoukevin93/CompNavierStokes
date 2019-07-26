@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
 from ToolBox import *
-from rusanov import *
+# import rusanov.Rusanov as Ru
 from Diffusion1D import *
 
 # Paramètre du maillage 1D
@@ -51,7 +51,7 @@ U1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 
 # Paramètres graphiques
-sp, axes = plt.subplots(1, 2)
+sp1, axes = plt.subplots(1, 2)
 
 Rho = Matplotlib1DViewer(vars=U1, axes=axes[0], interpolation='spline16', figaspect='auto')
 
@@ -59,8 +59,44 @@ Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], interpolation='spline16
 
 viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
 
+
+def Fe(x):
+    return np.array([x[1], (((x[1]) ** 2) / x[0]) + c * (x[0]) ** gamma])
+
+
+def Rusanov(U, dt, dx):
+    Flux1 = FaceVariable(name="\mathcal{F_1}", mesh=mesh, value=0.)
+    Flux2 = FaceVariable(name="\mathcal{F_2}", mesh=mesh, value=0.)
+
+    Flux = np.array([Flux1, Flux2])
+
+    # Calcul du max des valeurs propres
+    lambda1 = np.abs((U2 / U1) - numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
+    lambda2 = np.abs((U2 / U1) + numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
+
+    # Correction de Rusanov sur chaque faces
+    max_lambdas = numerix.maximum(numerix.maximum(lambda1[FacesCells[0]], lambda1[FacesCells[1]]),
+                                  numerix.maximum(lambda2[FacesCells[0]], lambda2[FacesCells[1]]))
+
+    # Calcul du flux de Rusanov sur chaque faces
+    tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - max_lambdas * (
+    U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)  # Rusanov
+    # tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - (dx/dt) * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.) #Lax-Friedrichs
+
+
+    # Calcul du flux global
+    Flux[0] = shiftg(tem_Flux[0]) - tem_Flux[0]
+    Flux[1] = shiftg(tem_Flux[1]) - tem_Flux[1]
+
+    Unew = U - (dt/dx)*Flux[:, 0:nFaces-1] #Mise à jour de U, Flux=[f0-f-1, f1-f0,....,f-1-f-2,f0-f-1], on coupe le dernier morceau
+
+    U1.setValue(Unew[0])
+    U2.setValue(Unew[1])
+
+    return np.array([U1, U2])
+
 def Phi_Rho(mu_Rho):
-    if len(Phi_Rho)==0:
+    if len(mu_Rho)==0:
         raise "Not a Vector"
     else:
         return (shiftg(mu_Rho) + mu_Rho)/2.
@@ -94,7 +130,8 @@ while tps <= duration:
 
     # Etape Rusanov
     Ustar = Rusanov(U, dt, dx)
-    mu_Rho_star = mu_Rho(Ustar[0], 10.)
+    # Ustar=U
+    mu_Rho_star = mu_Rho(Ustar[0], 100.)
     phi_Rho_star = Phi_Rho(mu_Rho_star)
 
     # Matrice de Diffusion
@@ -103,11 +140,11 @@ while tps <= duration:
     # Calcul du vecteur des vitesses dans la deuxieme etape du splitting
     U_ustar_new = splin.spsolve(Id - (dt/dx)*Diff, Ustar[1]/Ustar[0])
 
+    # U_ustar_new = U
     U1.setValue(Ustar[0])
     U2.setValue(Ustar[0]*U_ustar_new)
 
-    U1.updateOld()
-    U2.updateOld()
+
 
     # Condition CFL
     dt = np.min([dt1, 0.8 * dx / (np.max(max_lambdas.value))])

@@ -57,21 +57,21 @@ def Fe(x):
 
 
 # Paramètres graphiques
-sp, axes = plt.subplots(1, 2)
-
-Rho = Matplotlib1DViewer(vars=U1, axes=axes[0], interpolation='spline16', figaspect='auto')
-
-Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], interpolation='spline16', figaspect='auto')
-
-viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
+# sp, axes = plt.subplots(1, 2)
+#
+# Rho = Matplotlib1DViewer(vars=U1, axes=axes[0], interpolation='spline16', figaspect='auto')
+#
+# Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], interpolation='spline16', figaspect='auto')
+#
+# viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
 
 
 # Boucle en temps
-dt1 = 1e-3
-duration = 100
-Nt = int(duration / dt1) + 1
-dt = dt1
-tps = 0.
+# dt1 = 1e-3
+# duration = 100
+# Nt = int(duration / dt1) + 1
+# dt = dt1
+# tps = 0.
 
 
 def Rusanov(U, dt, dx):
@@ -105,53 +105,53 @@ def Rusanov(U, dt, dx):
 
     return np.array([U1, U2])
 
-while tps <= duration:
-
-    if U1.value.any() < 0.:
-        break
-
-        # Variables du problème
-    U = np.array([U1, U2])
-    Flux = np.array([Flux1, Flux2])
-
-    # Calcul du max des valeurs propres
-    lambda1 = np.abs((U2 / U1) - numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
-    lambda2 = np.abs((U2 / U1) + numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
-
-    # Correction de Rusanov sur chaque faces
-    max_lambdas = numerix.maximum(numerix.maximum(lambda1[FacesCells[0]], lambda1[FacesCells[1]]),
-                                  numerix.maximum(lambda2[FacesCells[0]], lambda2[FacesCells[1]]))
-
-    # Calcul du flux de Rusanov sur chaque faces
-    tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - max_lambdas * (
-    U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)  # Rusanov
-    # tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - (dx/dt) * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.) #Lax-Friedrichs
-
-
-    # Calcul du flux global
-    Flux[0] = shiftg(tem_Flux[0]) - tem_Flux[0]
-    Flux[1] = shiftg(tem_Flux[1]) - tem_Flux[1]
-
-    # Mise à jour de U, Flux=[f0-f-1, f1-f0,....,f-1-f-2,f0-f-1], on coupe le dernier morceau
-    # Unew = U - (dt / dx) * Flux[:, 0:nFaces - 1]
-
-    # Mise à jour de U, Flux=[f0-f-1, f1-f0,....,f-1-f-2,f0-f-1], on coupe le dernier morceau
-    Unew = U - (dt / dx) * Flux[:, 0:nFaces - 1]
-
-    U1.setValue(Unew[0])
-    U2.setValue(Unew[1])
-
-    # Condition CFL
-    dt = np.min([dt1, 0.8 * dx / (np.max(max_lambdas.value))])
-
-    # Mise à jour du temps
-    tps = tps + dt
-
-    print('time:{0}, dt: {1}'.format(tps, dt))
-    # if np.isnan(dt):
-    #     break
-
-    viewers.plot()
+# while tps <= duration:
+#
+#     if U1.value.any() < 0.:
+#         break
+#
+#         # Variables du problème
+#     U = np.array([U1, U2])
+#     Flux = np.array([Flux1, Flux2])
+#
+#     # Calcul du max des valeurs propres
+#     lambda1 = np.abs((U2 / U1) - numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
+#     lambda2 = np.abs((U2 / U1) + numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
+#
+#     # Correction de Rusanov sur chaque faces
+#     max_lambdas = numerix.maximum(numerix.maximum(lambda1[FacesCells[0]], lambda1[FacesCells[1]]),
+#                                   numerix.maximum(lambda2[FacesCells[0]], lambda2[FacesCells[1]]))
+#
+#     # Calcul du flux de Rusanov sur chaque faces
+#     tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - max_lambdas * (
+#     U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)  # Rusanov
+#     # tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - (dx/dt) * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.) #Lax-Friedrichs
+#
+#
+#     # Calcul du flux global
+#     Flux[0] = shiftg(tem_Flux[0]) - tem_Flux[0]
+#     Flux[1] = shiftg(tem_Flux[1]) - tem_Flux[1]
+#
+#     # Mise à jour de U, Flux=[f0-f-1, f1-f0,....,f-1-f-2,f0-f-1], on coupe le dernier morceau
+#     # Unew = U - (dt / dx) * Flux[:, 0:nFaces - 1]
+#
+#     # Mise à jour de U, Flux=[f0-f-1, f1-f0,....,f-1-f-2,f0-f-1], on coupe le dernier morceau
+#     Unew = U - (dt / dx) * Flux[:, 0:nFaces - 1]
+#
+#     U1.setValue(Unew[0])
+#     U2.setValue(Unew[1])
+#
+#     # Condition CFL
+#     dt = np.min([dt1, 0.8 * dx / (np.max(max_lambdas.value))])
+#
+#     # Mise à jour du temps
+#     tps = tps + dt
+#
+#     print('time:{0}, dt: {1}'.format(tps, dt))
+#     # if np.isnan(dt):
+#     #     break
+#
+#     viewers.plot()
 
 
 

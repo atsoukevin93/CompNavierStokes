@@ -15,4 +15,3 @@ def Build_Diffusion_Matrix(nVol, Phi_Rho, dx):
         Diff[nVol-1, 0] = Phi_Rho[nVol-1]
 
         return (1/dx)*Diff
-
