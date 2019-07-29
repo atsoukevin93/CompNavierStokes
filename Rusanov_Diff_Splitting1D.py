@@ -9,7 +9,7 @@ from Diffusion1D import *
 
 # Paramètre du maillage 1D
 L = 1.0
-nx = 50
+nx =100
 dx = L / nx
 
 
@@ -59,6 +59,7 @@ Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], interpolation='spline16
 
 viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
 
+ #Rusanov
 
 def Fe(x):
     return np.array([x[1], (((x[1]) ** 2) / x[0]) + c * (x[0]) ** gamma])
@@ -105,8 +106,10 @@ def Phi_Rho(mu_Rho):
 def mu_Rho(x,c):
     return c*x
 
+
+
 # Boucle en temps
-dt1 = 1e-3
+dt1 = 1e-2
 duration = 100
 Nt = int(duration / dt1) + 1
 dt = dt1
@@ -120,6 +123,9 @@ while tps <= duration:
         break
     U = np.array([U1, U2])
 
+    # Masse
+    M=dx*np.sum(U1.value)
+
     # Les valeurs propres
     lambda1 = np.abs((U2 / U1) - numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
     lambda2 = np.abs((U2 / U1) + numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
@@ -131,7 +137,7 @@ while tps <= duration:
     # Etape Rusanov
     Ustar = Rusanov(U, dt, dx)
     # Ustar=U
-    mu_Rho_star = mu_Rho(Ustar[0], 100.)
+    mu_Rho_star = mu_Rho(Ustar[0], 1)
     phi_Rho_star = Phi_Rho(mu_Rho_star)
 
     # Matrice de Diffusion
@@ -152,7 +158,7 @@ while tps <= duration:
     # Mise à jour du temps
     tps = tps + dt
 
-    print('time:{0}, dt: {1}'.format(tps, dt))
+    print('time:{0}, dt: {1}, M: {2}'.format(tps, dt, M))
     # if np.isnan(dt):
     #     break
 
