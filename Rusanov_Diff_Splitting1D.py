@@ -7,6 +7,8 @@ from ToolBox import *
 # import rusanov.Rusanov as Ru
 from Diffusion1D import *
 
+"""Return the potential energy for the particles"""
+
 # Paramètre du maillage 1D
 L = 1.0
 nx =100
@@ -82,7 +84,9 @@ def Rusanov(U, dt, dx):
     # Calcul du flux de Rusanov sur chaque faces
     tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - max_lambdas * (
     U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.)  # Rusanov
-    # tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) - (dx/dt) * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.) #Lax-Friedrichs
+
+    # tem_Flux = (centered_mean(Fe(U[:, FacesCells[0]]), Fe(U[:, FacesCells[1]])) -
+    # (dx/dt) * (U[:, FacesCells[1]] - U[:, FacesCells[0]]) / 2.) #Lax-Friedrichs
 
 
     # Calcul du flux global
