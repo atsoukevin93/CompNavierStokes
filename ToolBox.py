@@ -13,3 +13,18 @@ def shiftg(x):
 def shiftd(x):
     b=len(x)
     return x[np.arange(-1, b-1, 1)]
+
+
+def Phi_Rho(mu_Rho):
+    if len(mu_Rho)==0:
+        raise "Not a Vector"
+    else:
+        return (shiftg(mu_Rho) + mu_Rho)/2.
+
+
+def inv_vect(vect):
+    if len(vect)==0:
+        raise "Not a Vector"
+    else:
+        return 1/vect
+
