@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
+from scipy.optimize import newton
 from ToolBox import *
 # import rusanov.Rusanov as Ru
 from Diffusion1D import *
@@ -35,12 +36,14 @@ FacesCells = mesh.faceCellIDs
 c = 1.
 gamma = 2.
 
+def C_pressure(X,P,c,gamma,M, dx):
+    return dx*np.sum(((P+X)/c)**(1/gamma))-M
 
 def barotrope(P, c, gamma):
     return (P/c)**(1/gamma)
 
 
-def Renormalization_step(P0, P1, c, gamma):
+def Renormalization_step(P0, P1, c, gamma, L, dx):
     Rho0 = barotrope(P0, c, gamma)
     Rho1 = barotrope(P1, c, gamma)
 
@@ -48,5 +51,29 @@ def Renormalization_step(P0, P1, c, gamma):
     Diff2 = Build_Diffusion_Matrix(nVol, inv_vect(Phi_Rho(Rho1)*Phi_Rho(Rho0))**0.5, dx)
 
     P_tild = splin.spsolve(Diff1.tocsc(), numerix.dot(Diff2, P1))
+    M=dx*np.sum(Rho0)
+    X=0
+    Cnst=newton(C_pressure,X,args=[P_tild,c,gamma,M,dx],tol=0.00001,maxiter=50)
+    return P_tild+Cnst
 
-    return P_tild
+def pplus(x):
+    return (x+np.abs(x))/2.
+def pminus(x):
+    return (x-np.abs(x))/2.
+
+
+def convection_hkl(U,rho):
+    N=len(rho)
+    F=(U+shiftg(U))/2.
+    rho1=np.concatenate([rho,[rho[0]]])
+    rhoN=np.concatenate([[rho[N-1]],rho])
+    diag0=rho1*pplus(F)+rhoN*pminus(shiftd(F))
+    diag0p=np.concatenate([[0],-rho*(pminus(F)[0:N])])
+    diag0m=np.concatenate([-rho*(pplus(F)[0:N]),[0]])
+    M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N+1, N+1))
+    M[0,N]=-rho[N-1]*pplus((U[0]+U[N])/2.)
+    M[N,0]=-rho[0]*pminus((U[0]+U[N])/2.)
+    return M
+
+
+
