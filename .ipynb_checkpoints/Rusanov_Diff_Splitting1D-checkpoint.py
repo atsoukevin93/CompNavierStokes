@@ -7,6 +7,33 @@ from ToolBox import *
 # import rusanov.Rusanov as Ru
 from Diffusion1D import *
 
+"""
+    Return the potential energy for the particles.
+
+    Parameters
+    ----------
+    KST : is the coefficient expressing the steepness of the spring
+        real number
+    nuSTc : link creation rate
+        real number
+    nuSTc : link destruction rate
+        real number
+    x : particles positions
+        (2,$N_A$) matrix, where $N_A$ is the number of particles
+        of type A for example
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> import numpy as np
+    >>> x1 = np.array([np.arange(0., 2., 0.01), np.arange(0., 2., 0.01)])
+    >>> mod_x = np.sqrt((x1[0])**2 + (x1[1])**2)
+    >>> KST, nuSTc, nuSTd, R = 0.2, 0.6, 0.3, np.sqrt(2)
+    >>> f = gradphiST(x1,KST,nuSTc,nuSTd,R)
+    >>> print(f)
+    >>> plt.plot(mod_x,f[0,:])
+    >>> plt.show()
+"""
 
 # Paramètre du maillage 1D
 L = 1.0
@@ -99,6 +126,11 @@ def Rusanov(U, dt, dx):
 
     return np.array([U1, U2])
 
+def Phi_Rho(mu_Rho):
+    if len(mu_Rho)==0:
+        raise "Not a Vector"
+    else:
+        return (shiftg(mu_Rho) + mu_Rho)/2.
 
 
 def mu_Rho(x,c):
