@@ -61,6 +61,9 @@ def pplus(x):
 def pminus(x):
     return (x-np.abs(x))/2.
 
+def mu_rho(rho):
+    return rho
+
 
 def convection_hkl(U,rho):
     N=len(rho)
@@ -75,5 +78,15 @@ def convection_hkl(U,rho):
     M[N,0]=-rho[0]*pminus((U[0]+U[N])/2.)
     return M
 
+def diffusion_hkl(rho,dx):
+    N=len(rho)
+    F=mu_rho(rho)
+    diag0=np.concatenate([F+shiftd(F),[(F+shiftd(F))[0]]])
+    diag0p=np.concatenate([[0],-mu_rho(rho)])
+    diag0m=np.concatenate([-mu_rho(rho),[0]])
+    M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N + 1, N + 1))
+    M[0,N]=-F[N-1]
+    M[N,0]=-F[0]
+    return (1/dx)*M
 
 
