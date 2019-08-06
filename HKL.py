@@ -10,7 +10,7 @@ from Diffusion1D import *
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =100
+nx =2000
 dx = L / nx
 
 
@@ -24,7 +24,7 @@ x, = mesh.cellCenters
 
 
 # Nombre de volumes, nombre de faces
-nVol = mesh.numberOfCells
+Nvol = mesh.numberOfCells
 nFaces = mesh.numberOfFaces
 
 
@@ -36,24 +36,45 @@ FacesCells = mesh.faceCellIDs
 c = 1.
 gamma = 2.
 
+# les inconnus
+U = FaceVariable(name='$u$', mesh=mesh, value=1.)
+Rho0 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
+Rho1 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
+Rho2 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
+
+# Donnée initiale sur rho
+# Rho0.setValue(1., where=x >= 0.7)
+# Rho0.setValue(1., where=x < 0.5)
+# Rho0.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
+
+# Rho1.setValue(1., where=x >= 0.7)
+# Rho1.setValue(1., where=x < 0.5)
+# Rho1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
+
+Rho1.setValue(np.exp(-(x-0.5)**2))
+
 def C_pressure(X,P,c,gamma,M, dx):
     return dx*np.sum(((P+X)/c)**(1/gamma))-M
 
-def barotrope(P, c, gamma):
+def barotrope_Ptorho(P, c, gamma):
     return (P/c)**(1/gamma)
 
+def barotrope_rhotoP(rho, c, gamma):
+    return c*rho**gamma
 
-def Renormalization_step(P0, P1, c, gamma, L, dx):
-    Rho0 = barotrope(P0, c, gamma)
-    Rho1 = barotrope(P1, c, gamma)
 
-    Diff1 = Build_Diffusion_Matrix(nVol, inv_vect(Phi_Rho(Rho1)), dx)
-    Diff2 = Build_Diffusion_Matrix(nVol, inv_vect(Phi_Rho(Rho1)*Phi_Rho(Rho0))**0.5, dx)
+def Renormalization_step(P0, P1, c, gamma, L, dx, tol, maxiter):
+    N=len(P0)
+    Rho0 = barotrope_Ptorho(P0, c, gamma)
+    Rho1 = barotrope_Ptorho(P1, c, gamma)
+
+    Diff1 = Build_Diffusion_Matrix(N, inv_vect(Phi_Rho(Rho1)), dx)
+    Diff2 = Build_Diffusion_Matrix(N, inv_vect(Phi_Rho(Rho1) * Phi_Rho(Rho0)) ** 0.5, dx)
 
     P_tild = splin.spsolve(Diff1.tocsc(), numerix.dot(Diff2, P1))
     M=dx*np.sum(Rho0)
     X=0
-    Cnst=newton(C_pressure,X,args=[P_tild,c,gamma,M,dx],tol=0.00001,maxiter=50)
+    Cnst=newton(C_pressure,X,args=[P_tild,c,gamma,M,dx],tol=tol,maxiter=maxiter)
     return P_tild+Cnst
 
 def pplus(x):
@@ -89,6 +110,8 @@ def diffusion_hkl(rho,dx):
     M[N,0]=-F[0]
     return (1/dx)*M
 
+
+
 def linear_step3(P,U,rho,dx,dt):
     N = len(P)
     diag0=(dx/(dt*dt))-(1/dx)*(P-shiftd(P))/(rho + shiftd(rho))+(1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*(shiftg(U)-U)[0:N]
@@ -101,7 +124,7 @@ def linear_step3(P,U,rho,dx,dt):
 
 def nonlinear_step3(X,rho,dx):
     N=len(rho)
-    Y=barotrope(X, c, gamma)
+    Y=barotrope_rhotoP(X, c, gamma)
     diag0=-(1/dx)*(shiftg(Y)-Y)/(shiftg(rho)+rho)+(1/dx)*(Y-shiftd(Y))/(shiftd(rho)+rho)
     diag0p=np.concatenate([[0],(-(1/dx)*(shiftg(Y)-Y)/(shiftg(rho)+rho))[0:N-1]])
     diag0m=np.concatenate([((1/dx)*(Y-shiftd(Y))/(shiftd(rho)+rho))[1:N],[0]])
@@ -113,6 +136,61 @@ def nonlinear_step3(X,rho,dx):
 def total_step3(X,P,U,rho,dx,dt):
     return (linear_step3(P,U,rho,dx,dt)*X)+nonlinear_step3(X,rho,dx)-(dx/(dt*dt))*rho
 
-def step3(U,P,rho,dx,dt,tol):
-    return newton(total_step3,rho,args=(P,U,rho,dx,dt),maxiter=100,tol=tol)
+def step3(U,P,rho,dx,dt,tol,maxiter):
+    return newton(total_step3,rho,args=(P,U,rho,dx,dt),maxiter=maxiter,tol=tol)
 
+def step4(U,rho,P0,P1,dx,dt):
+    X=((2*dt)/dx)*(shiftd(P1)-P1+P0-shiftd(P0))/(shiftd(rho)+rho)
+    return U+np.concatenate([X,[X[0]]])
+
+def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
+    N=len(rho0)
+    P0=barotrope_rhotoP(rho0,c,gamma)
+    P1=barotrope_rhotoP(rho1,c,gamma)
+    # Step 1
+    # Ptilde=Renormalization_step(P0,P1,c,gamma,L,dx, tol, maxiter)
+    Ptilde=P1
+    rhotilde=barotrope_Ptorho(Ptilde,c,gamma)
+    # Step 2
+    Diag0=(dx/(2*dt))*np.concatenate([rhotilde+shiftd(rhotilde),[(rhotilde+shiftd(rhotilde))[0]]])
+    D=sp.lil_matrix(sp.spdiags([Diag0], [0], N+1, N+1))
+    B=D+convection_hkl(U1,rhotilde)+diffusion_hkl(rhotilde,dx)
+    Diag1=(dx/(2*dt))*np.concatenate([rho1+shiftd(rho1),[(rho1+shiftd(rho1))[0]]])
+    Y=Diag1*U1
+    Utilde=splin.spsolve(B,Y)
+    # Step 3
+    rho2=step3(Utilde,Ptilde,rho1,dx,dt,tol,maxiter)
+    P2=barotrope_rhotoP(rho2,c,gamma)
+    # Step 4
+    U2=step4(Utilde,rho1,Ptilde,P2,dx,dt)
+    return [rho1, rho2, U2]
+
+# figures
+sp1, axes = plt.subplots(1, 2)
+
+Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', figaspect='auto')
+
+u_fig = Matplotlib1DViewer(vars=U, axes=axes[1], interpolation='spline16', figaspect='auto')
+
+viewers = MultiViewer(viewers=(Rho_fig, u_fig))
+# viewers = MultiViewer(viewers=(Rho_fig))
+
+# Boucle en temps
+dt1 = 1e-4
+duration = 100
+Nt = int(duration / dt1) + 1
+dt = dt1
+tps = 0.
+
+while tps <= duration:
+    tol = 1e-6
+    maxiter = 200
+    rho1, rho2, U2 = HKL(Rho0.value, Rho1.value, U.value, dx, dt, L, c, gamma, tol, maxiter)
+
+    Rho0.setValue(rho1)
+    Rho1.setValue(rho2)
+    U.setValue(U2)
+
+    tps = tps + dt
+
+    viewers.plot()
