@@ -89,4 +89,14 @@ def diffusion_hkl(rho,dx):
     M[N,0]=-F[0]
     return (1/dx)*M
 
+def linear_step3(P,U,rho,dx,dt):
+    N = len(P)
+    diag0=-(1/dx)*(P-shiftd(P))/(rho + shiftd(rho))+(1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*((shiftg(U)-U)[0:N])
+    diag0p= np.concatenate([[0],((1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*shiftg(U)[0:N])[0:N-1]])
+    diag0m=-(1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)-(1/(2*dt))*shiftg(U)[0:N]
+    M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N, N))
+    M[0, N-1] = diag0m[N-1]
+    M[N-1,0] = ((1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*shiftg(U)[0:N])[N-1]
+    return  M
+
 
