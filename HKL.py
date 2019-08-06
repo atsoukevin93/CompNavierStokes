@@ -91,12 +91,28 @@ def diffusion_hkl(rho,dx):
 
 def linear_step3(P,U,rho,dx,dt):
     N = len(P)
-    diag0=-(1/dx)*(P-shiftd(P))/(rho + shiftd(rho))+(1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*((shiftg(U)-U)[0:N])
+    diag0=(dx/(dt*dt))-(1/dx)*(P-shiftd(P))/(rho + shiftd(rho))+(1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*(shiftg(U)-U)[0:N]
     diag0p= np.concatenate([[0],((1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*shiftg(U)[0:N])[0:N-1]])
     diag0m=-(1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)-(1/(2*dt))*shiftg(U)[0:N]
     M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N, N))
-    M[0, N-1] = diag0m[N-1]
-    M[N-1,0] = ((1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*shiftg(U)[0:N])[N-1]
+    M[0, N-1] = -(1/dx)*(P[0]-P[N-1])/(rho[0]+rho[N-1])-(1/(2*dt))*U[0]
+    M[N-1,0] = +(1/dx)*(P[0]-P[N-1])/(rho[0]+rho[N-1])+(1/(2*dt))*U[N]
     return  M
 
+def nonlinear_step3(X,rho,dx):
+    N=len(rho)
+    Y=barotrope(X, c, gamma)
+    diag0=-(1/dx)*(shiftg(Y)-Y)/(shiftg(rho)+rho)+(1/dx)*(Y-shiftd(Y))/(shiftd(rho)+rho)
+    diag0p=np.concatenate([[0],(-(1/dx)*(shiftg(Y)-Y)/(shiftg(rho)+rho))[0:N-1]])
+    diag0m=np.concatenate([((1/dx)*(Y-shiftd(Y))/(shiftd(rho)+rho))[1:N],[0]])
+    M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N, N))
+    M[0,N-1]=(1/dx)*(Y[0]-Y[N-1])/(rho[0]+rho[N-1])
+    M[N-1,0]=-(1/dx)*(Y[0]-Y[N-1])/(rho[0]+rho[N-1])
+    return M*X
+
+def total_step3(X,P,U,rho,dx,dt):
+    return (linear_step3(P,U,rho,dx,dt)*X)+nonlinear_step3(X,rho,dx)-(dx/(dt*dt))*rho
+
+def step3(U,P,rho,dx,dt,tol):
+    return newton(total_step3,rho,args=(P,U,rho,dx,dt),maxiter=100,tol=tol)
 
