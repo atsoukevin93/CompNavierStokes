@@ -7,10 +7,12 @@ from scipy.optimize import newton
 from ToolBox import *
 # import rusanov.Rusanov as Ru
 from Diffusion1D import *
+import time
+
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =500
+nx =1000
 dx = L / nx
 
 
@@ -52,8 +54,14 @@ Rho1.setValue(1., where=x < 0.5)
 Rho1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 
+# rho0=Rho0.value
+# rho1=Rho1.value
+# U1=U.value
+#
 
-# Rho1.setValue(np.exp(-(x-0.5)**2))
+
+
+# Rho1.setValue(np.exp(-(x-0.5)**2)+0.3)
 
 def C_pressure(X,P,c,gamma,M, dx):
     return dx*np.sum(((P+X)/c)**(1/gamma))-M
@@ -86,20 +94,20 @@ def pminus(x):
 
 def mu_rho(rho):
     N=len(rho)
-    return rho
-
+    # return rho
+    return np.ones(N)
 
 def convection_hkl(U,rho):
     N=len(rho)
     F=(U+shiftg(U))/2.
     rho1=np.concatenate([rho,[rho[0]]])
     rhoN=np.concatenate([[rho[N-1]],rho])
-    diag0=rho1*pplus(F)+rhoN*pminus(shiftd(F))
-    diag0p=np.concatenate([[0],-rho*(pminus(F)[0:N])])
+    diag0=rho1*pplus(F)-rhoN*pminus(shiftd(F))
+    diag0p=np.concatenate([[0],rho*(pminus(F)[0:N])])
     diag0m=np.concatenate([-rho*(pplus(F)[0:N]),[0]])
     M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N+1, N+1))
     M[0,N]=-rho[N-1]*pplus((U[0]+U[N])/2.)
-    M[N,0]=-rho[0]*pminus((U[0]+U[N])/2.)
+    M[N,0]=+rho[0]*pminus((U[0]+U[N])/2.)
     return M
 
 def diffusion_hkl(rho,dx):
@@ -159,9 +167,9 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
     D=sp.lil_matrix(sp.spdiags([Diag0], [0], N+1, N+1))
     B=D+convection_hkl(U1,rhotilde)+diffusion_hkl(rhotilde,dx)
     Diag1=(dx/(2*dt))*np.concatenate([rho1+shiftd(rho1),[(rho1+shiftd(rho1))[0]]])
-    Y=Diag1*U1
+    Y=Diag1*U1+np.concatenate([shiftd(Ptilde)-Ptilde,[(shiftd(Ptilde)-Ptilde)[0]]])
     Utilde=splin.spsolve(B,Y)
-    # Step 3
+    # Step 3P
     rho2=step3(Utilde,Ptilde,rho1,dx,dt,tol,maxiter)
     P2=barotrope_rhotoP(rho2,c,gamma)
     # Step 4
@@ -179,13 +187,13 @@ Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', 
 viewers = MultiViewer(viewers=(Rho_fig))
 
 # Boucle en temps
-dt1 = 1e-3
+dt1 = 1e-4
 duration = 100
 Nt = int(duration / dt1) + 1
 dt = dt1
 tps = 0.
 
-# while tps <= duration:
+while tps <= duration:
     tol = 1e-6
     maxiter = 200
     rho1, rho2, U2 = HKL(Rho0.value, Rho1.value, U.value, dx, dt, L, c, gamma, tol, maxiter)
@@ -195,5 +203,6 @@ tps = 0.
     U.setValue(U2)
     print(Rho1)
     tps = tps + dt
+    # time.sleep(10)
 
     viewers.plot()
