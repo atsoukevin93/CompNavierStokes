@@ -12,7 +12,7 @@ import time
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =1000
+nx =200
 dx = L / nx
 
 
@@ -53,11 +53,11 @@ Rho1.setValue(1., where=x >= 0.7)
 Rho1.setValue(1., where=x < 0.5)
 Rho1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
-
+#
 # rho0=Rho0.value
 # rho1=Rho1.value
 # U1=U.value
-#
+
 
 
 
@@ -121,8 +121,6 @@ def diffusion_hkl(rho,dx):
     M[N,0]=-F[0]
     return (1/dx)*M
 
-
-
 def linear_step3(P,U,rho,dx,dt):
     N = len(P)
     diag0=(dx/(dt*dt))-(1/dx)*(P-shiftd(P))/(rho + shiftd(rho))+(1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*(shiftg(U)-U)[0:N]
@@ -148,7 +146,8 @@ def total_step3(X,P,U,rho,dx,dt):
     return (linear_step3(P,U,rho,dx,dt)*X)+nonlinear_step3(X,rho,dx)-(dx/(dt*dt))*rho
 
 def step3(U,P,rho,dx,dt,tol,maxiter):
-    return newton(total_step3,rho,args=(P,U,rho,dx,dt),maxiter=maxiter,tol=tol)
+    rho_cop=np.copy(rho)
+    return newton(total_step3,rho_cop,args=(P,U,rho,dx,dt),maxiter=maxiter,tol=tol)
 
 def step4(U,rho,P0,P1,dx,dt):
     X=((2*dt)/dx)*(shiftd(P1)-P1+P0-shiftd(P0))/(shiftd(rho)+rho)
@@ -168,18 +167,18 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
     B=D+convection_hkl(U1,rhotilde)+diffusion_hkl(rhotilde,dx)
     Diag1=(dx/(2*dt))*np.concatenate([rho1+shiftd(rho1),[(rho1+shiftd(rho1))[0]]])
     Y=Diag1*U1+np.concatenate([shiftd(Ptilde)-Ptilde,[(shiftd(Ptilde)-Ptilde)[0]]])
-    Utilde=splin.spsolve(B,Y)
+    Utilde=splin.gmres(B,Y)[0]
     # Step 3P
     rho2=step3(Utilde,Ptilde,rho1,dx,dt,tol,maxiter)
     P2=barotrope_rhotoP(rho2,c,gamma)
     # Step 4
-    U2=step4(Utilde,rho1,Ptilde,P2,dx,dt)
+    U2=step4(Utilde,rho2,Ptilde,P1,dx,dt)
     return [rho1, rho2, U2]
 
 # figures
 sp1, axes = plt.subplots(1,2)
 
-Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', figaspect='auto')
+Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', datamax = 1.5, figaspect='auto')
 
 # u_fig = Matplotlib1DViewer(vars=U, axes=axes[1], interpolation='spline16', figaspect='auto')
 
@@ -187,20 +186,22 @@ Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', 
 viewers = MultiViewer(viewers=(Rho_fig))
 
 # Boucle en temps
-dt1 = 1e-4
+dt1 = 1e-3
 duration = 100
 Nt = int(duration / dt1) + 1
 dt = dt1
 tps = 0.
 
 while tps <= duration:
-    tol = 1e-6
-    maxiter = 200
+
+    tol = 1e-8
+    maxiter = 2000
     rho1, rho2, U2 = HKL(Rho0.value, Rho1.value, U.value, dx, dt, L, c, gamma, tol, maxiter)
 
     Rho0.setValue(rho1)
     Rho1.setValue(rho2)
     U.setValue(U2)
+    # raw_input("pause...")
     print(Rho1)
     tps = tps + dt
     # time.sleep(10)
