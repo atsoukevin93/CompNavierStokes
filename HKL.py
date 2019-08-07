@@ -10,7 +10,7 @@ from Diffusion1D import *
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =2000
+nx =500
 dx = L / nx
 
 
@@ -37,7 +37,7 @@ c = 1.
 gamma = 2.
 
 # les inconnus
-U = FaceVariable(name='$u$', mesh=mesh, value=1.)
+U = FaceVariable(name='$u$', mesh=mesh, value=0.)
 Rho0 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
 Rho1 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
 Rho2 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
@@ -47,11 +47,13 @@ Rho2 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
 # Rho0.setValue(1., where=x < 0.5)
 # Rho0.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
-# Rho1.setValue(1., where=x >= 0.7)
-# Rho1.setValue(1., where=x < 0.5)
-# Rho1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
+Rho1.setValue(1., where=x >= 0.7)
+Rho1.setValue(1., where=x < 0.5)
+Rho1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
-Rho1.setValue(np.exp(-(x-0.5)**2))
+
+
+# Rho1.setValue(np.exp(-(x-0.5)**2))
 
 def C_pressure(X,P,c,gamma,M, dx):
     return dx*np.sum(((P+X)/c)**(1/gamma))-M
@@ -83,6 +85,7 @@ def pminus(x):
     return (x-np.abs(x))/2.
 
 def mu_rho(rho):
+    N=len(rho)
     return rho
 
 
@@ -166,23 +169,23 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
     return [rho1, rho2, U2]
 
 # figures
-sp1, axes = plt.subplots(1, 2)
+sp1, axes = plt.subplots(1,2)
 
 Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', figaspect='auto')
 
-u_fig = Matplotlib1DViewer(vars=U, axes=axes[1], interpolation='spline16', figaspect='auto')
+# u_fig = Matplotlib1DViewer(vars=U, axes=axes[1], interpolation='spline16', figaspect='auto')
 
-viewers = MultiViewer(viewers=(Rho_fig, u_fig))
-# viewers = MultiViewer(viewers=(Rho_fig))
+# viewers = MultiViewer(viewers=(Rho_fig, u_fig))
+viewers = MultiViewer(viewers=(Rho_fig))
 
 # Boucle en temps
-dt1 = 1e-4
+dt1 = 1e-3
 duration = 100
 Nt = int(duration / dt1) + 1
 dt = dt1
 tps = 0.
 
-while tps <= duration:
+# while tps <= duration:
     tol = 1e-6
     maxiter = 200
     rho1, rho2, U2 = HKL(Rho0.value, Rho1.value, U.value, dx, dt, L, c, gamma, tol, maxiter)
@@ -190,7 +193,7 @@ while tps <= duration:
     Rho0.setValue(rho1)
     Rho1.setValue(rho2)
     U.setValue(U2)
-
+    print(Rho1)
     tps = tps + dt
 
     viewers.plot()
