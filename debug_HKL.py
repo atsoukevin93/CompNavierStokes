@@ -1,0 +1,203 @@
+from fipy import *
+import numpy as np
+from matplotlib import pyplot as plt
+import scipy.sparse as sp;
+import scipy.sparse.linalg as splin;
+from scipy.optimize import newton
+from ToolBox import *
+from Diffusion1D import *
+
+# Paramètre du maillage 1D
+L = 1.0
+nx =50
+dx = L / nx
+
+
+# Construction du maillage
+mesh = PeriodicGrid1D(dx, nx)
+
+
+# Données du maillage
+# Centres des mailles
+x, = mesh.cellCenters
+
+
+# Nombre de volumes, nombre de faces
+Nvol = mesh.numberOfCells
+nFaces = mesh.numberOfFaces
+
+
+# Faces associées aux cellules (en périodique)
+FacesCells = mesh.faceCellIDs
+
+
+# Paramètre p(rho)=c*rho^{gamma}
+c = 1.
+gamma = 2.
+
+# les inconnus
+U = FaceVariable(name='$u$', mesh=mesh, value=0.)
+Rho0 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
+Rho1 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
+Rho2 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
+
+# Donnée initiale sur rho
+# Rho0.setValue(1., where=x >= 0.7)
+# Rho0.setValue(1., where=x < 0.5)
+# Rho0.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
+
+Rho1.setValue(1., where=x >= 0.7)
+Rho1.setValue(1., where=x < 0.5)
+Rho1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
+
+#
+# rho0=Rho0.value
+# rho1=Rho1.value
+# U1=U.value
+
+
+
+# Rho1.setValue(np.exp(-(x-0.5)**2))
+
+def C_pressure(X,P,c,gamma,M, dx):
+    return dx*np.sum(((P+X)/c)**(1/gamma))-M
+
+def barotrope_Ptorho(P, c, gamma):
+    return (P/c)**(1/gamma)
+
+def barotrope_rhotoP(rho, c, gamma):
+    return c*rho**gamma
+
+
+def Renormalization_step(P0, P1, c, gamma, L, dx, tol, maxiter):
+    N=len(P0)
+    Rho0 = barotrope_Ptorho(P0, c, gamma)
+    Rho1 = barotrope_Ptorho(P1, c, gamma)
+
+    Diff1 = Build_Diffusion_Matrix(N, inv_vect(Phi_Rho(Rho1)), dx)
+    Diff2 = Build_Diffusion_Matrix(N, inv_vect(Phi_Rho(Rho1) * Phi_Rho(Rho0)) ** 0.5, dx)
+
+    P_tild = splin.spsolve(Diff1.tocsc(), numerix.dot(Diff2, P1))
+    M=dx*np.sum(Rho0)
+    X=0
+    Cnst=newton(C_pressure,X,args=[P_tild,c,gamma,M,dx],tol=tol,maxiter=maxiter)
+    return P_tild+Cnst
+
+def pplus(x):
+    return (x+np.abs(x))/2.
+def pminus(x):
+    return (x-np.abs(x))/2.
+
+def mu_rho(rho):
+    N=len(rho)
+    return rho
+
+
+def convection_hkl(U,rho):
+    N=len(rho)
+    F=(U+shiftg(U))/2.
+    rho1=np.concatenate([rho,[rho[0]]])
+    rhoN=np.concatenate([[rho[N-1]],rho])
+    diag0=rho1*pplus(F)+rhoN*pminus(shiftd(F))
+    diag0p=np.concatenate([[0],-rho*(pminus(F)[0:N])])
+    diag0m=np.concatenate([-rho*(pplus(F)[0:N]),[0]])
+    M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N+1, N+1))
+    M[0,N]=-rho[N-1]*pplus((U[0]+U[N])/2.)
+    M[N,0]=-rho[0]*pminus((U[0]+U[N])/2.)
+    return M
+
+def diffusion_hkl(rho,dx):
+    N=len(rho)
+    F=mu_rho(rho)
+    diag0=np.concatenate([F+shiftd(F),[(F+shiftd(F))[0]]])
+    diag0p=np.concatenate([[0],-mu_rho(rho)])
+    diag0m=np.concatenate([-mu_rho(rho),[0]])
+    M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N + 1, N + 1))
+    M[0,N]=-F[N-1]
+    M[N,0]=-F[0]
+    return (1/dx)*M
+
+
+
+def linear_step3(P,U,rho,dx,dt):
+    N = len(P)
+    diag0=(dx/(dt*dt))-(1/dx)*(P-shiftd(P))/(rho + shiftd(rho))+(1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*(shiftg(U)-U)[0:N]
+    diag0p= np.concatenate([[0],((1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)+(1/(2*dt))*shiftg(U)[0:N])[0:N-1]])
+    diag0m=-(1/dx)*(shiftg(P)-P)/(shiftg(rho)+rho)-(1/(2*dt))*shiftg(U)[0:N]
+    M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N, N))
+    M[0, N-1] = -(1/dx)*(P[0]-P[N-1])/(rho[0]+rho[N-1])-(1/(2*dt))*U[0]
+    M[N-1,0] = +(1/dx)*(P[0]-P[N-1])/(rho[0]+rho[N-1])+(1/(2*dt))*U[N]
+    return  M
+
+def nonlinear_step3(X,rho,dx):
+    N=len(rho)
+    Y=barotrope_rhotoP(X, c, gamma)
+    diag0=-(1/dx)*(shiftg(Y)-Y)/(shiftg(rho)+rho)+(1/dx)*(Y-shiftd(Y))/(shiftd(rho)+rho)
+    diag0p=np.concatenate([[0],(-(1/dx)*(shiftg(Y)-Y)/(shiftg(rho)+rho))[0:N-1]])
+    diag0m=np.concatenate([((1/dx)*(Y-shiftd(Y))/(shiftd(rho)+rho))[1:N],[0]])
+    M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N, N))
+    M[0,N-1]=(1/dx)*(Y[0]-Y[N-1])/(rho[0]+rho[N-1])
+    M[N-1,0]=-(1/dx)*(Y[0]-Y[N-1])/(rho[0]+rho[N-1])
+    return M*X
+
+def total_step3(X,P,U,rho,dx,dt):
+    return (linear_step3(P,U,rho,dx,dt)*X)+nonlinear_step3(X,rho,dx)-(dx/(dt*dt))*rho
+
+def step3(U,P,rho,dx,dt,tol,maxiter):
+    return newton(total_step3,rho,args=(P,U,rho,dx,dt),maxiter=maxiter,tol=tol)
+
+def step4(U,rho,P0,P1,dx,dt):
+    X=((2*dt)/dx)*(shiftd(P1)-P1+P0-shiftd(P0))/(shiftd(rho)+rho)
+    return U+np.concatenate([X,[X[0]]])
+
+def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
+    N=len(rho0)
+    P0=barotrope_rhotoP(rho0,c,gamma)
+    P1=barotrope_rhotoP(rho1,c,gamma)
+    # Step 1
+    # Ptilde=Renormalization_step(P0,P1,c,gamma,L,dx, tol, maxiter)
+    Ptilde=P1
+    rhotilde=rho1
+    # Step 2
+    Diag0=(dx/(2*dt))*np.concatenate([rhotilde+shiftd(rhotilde),[(rhotilde+shiftd(rhotilde))[0]]])
+    D=sp.lil_matrix(sp.spdiags([Diag0], [0], N+1, N+1))
+    B=D+convection_hkl(U1,rhotilde)+diffusion_hkl(rhotilde,dx)
+    Diag1=(dx/(2*dt))*np.concatenate([rho1+shiftd(rho1),[(rho1+shiftd(rho1))[0]]])
+    Y=Diag1*U1+np.concatenate([shiftd(Ptilde)-Ptilde,[(shiftd(Ptilde)-Ptilde)[0]]])
+    Utilde=splin.spsolve(B,Y)
+    # Step 3
+    rho2=step3(Utilde,Ptilde,rho1,dx,dt,tol,maxiter)
+    P2=barotrope_rhotoP(rho2,c,gamma)
+    # Step 4
+    U2=step4(Utilde,rho1,Ptilde,P2,dx,dt)
+    return [rho1, rho2, U2]
+
+# figures
+sp1, axes = plt.subplots(1,2)
+
+Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', figaspect='auto')
+
+# u_fig = Matplotlib1DViewer(vars=U, axes=axes[1], interpolation='spline16', figaspect='auto')
+
+# viewers = MultiViewer(viewers=(Rho_fig, u_fig))
+viewers = MultiViewer(viewers=(Rho_fig))
+
+# Boucle en temps
+dt1 = 1e-4
+duration = 100
+Nt = int(duration / dt1) + 1
+dt = dt1
+tps = 0.
+
+while tps <= duration:
+    tol = 1e-6
+    maxiter = 200
+    rho1, rho2, U2 = HKL(Rho0.value, Rho1.value, U.value, dx, dt, L, c, gamma, tol, maxiter)
+
+    Rho0.setValue(rho1)
+    Rho1.setValue(rho2)
+    U.setValue(U2)
+    print(Rho1)
+    tps = tps + dt
+
+viewers.plot()
