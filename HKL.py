@@ -12,7 +12,7 @@ import time
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =200
+nx =500
 dx = L / nx
 
 
@@ -54,11 +54,11 @@ Rho1.setValue(1., where=x < 0.5)
 Rho1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 #
-# rho0=Rho0.value
-# rho1=Rho1.value
-# U1=U.value
+rho0=Rho0.value
+rho1=Rho1.value
+U1=U.value
 
-
+U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
 
 
 # Rho1.setValue(np.exp(-(x-0.5)**2)+0.3)
@@ -94,8 +94,8 @@ def pminus(x):
 
 def mu_rho(rho):
     N=len(rho)
-    # return rho
-    return np.ones(N)
+    return 0.00001*rho
+    # return np.ones(N)
 
 def convection_hkl(U,rho):
     N=len(rho)
@@ -151,7 +151,7 @@ def step3(U,P,rho,dx,dt,tol,maxiter):
 
 def step4(U,rho,P0,P1,dx,dt):
     X=((2*dt)/dx)*(shiftd(P1)-P1+P0-shiftd(P0))/(shiftd(rho)+rho)
-    return U+np.concatenate([X,[X[0]]])
+    return U+np.concatenate([X, [X[0]]])
 
 def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
     N=len(rho0)
@@ -180,13 +180,13 @@ sp1, axes = plt.subplots(1,2)
 
 Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', datamax = 1.5, figaspect='auto')
 
-# u_fig = Matplotlib1DViewer(vars=U, axes=axes[1], interpolation='spline16', figaspect='auto')
+u_fig = Matplotlib1DViewer(vars=U_fig, axes=axes[1], interpolation='spline16', figaspect='auto')
 
-# viewers = MultiViewer(viewers=(Rho_fig, u_fig))
-viewers = MultiViewer(viewers=(Rho_fig))
+viewers = MultiViewer(viewers=(Rho_fig, u_fig))
+# viewers = MultiViewer(viewers=(Rho_fig))
 
 # Boucle en temps
-dt1 = 1e-3
+dt1 = 1e-4
 duration = 100
 Nt = int(duration / dt1) + 1
 dt = dt1
@@ -201,8 +201,10 @@ while tps <= duration:
     Rho0.setValue(rho1)
     Rho1.setValue(rho2)
     U.setValue(U2)
+    U_fig.setValue((U + shiftg(U))[0:Nvol])
     # raw_input("pause...")
     print(Rho1)
+    print('vitesse',U)
     tps = tps + dt
     # time.sleep(10)
 
