@@ -53,8 +53,8 @@ Rho.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 
 #
-rho=Rho.value
-U=U.value
+#rho=Rho.value
+#U=U.value
 
 U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
 
@@ -89,15 +89,15 @@ def Explicit_Staggered(rho, U, dt, dx):
     M[N, 0] = mu_rho(Rho_new)[N - 1] /(dx*dx)
 
     R= barotrope_rhotoP(Rho_new, c, gamma) -shiftd(barotrope_rhotoP(Rho_new, c, gamma))
-    B = 1/dt * (np.concatenate([shiftd(rho) + rho, [(shiftd(rho)+ rho)[0]]]) * U)
-       - 1/dx * np.concatenate([R, [R[0]]])
-      - 1/dx * np.concatenate([rho, [rho[0]]]) * (U * pplus(F) + shiftg(U) * pminus(F))
-      + 1/dx * np.concatenate([shiftd(rho), [shiftd(rho)[0]]]) * (shiftd(U) * pplus(G) + U * pminus(G))
+    B = 1/dt * (np.concatenate([shiftd(rho) + rho, [(shiftd(rho)+ rho)[0]]]) * U) \
+       - 1/dx * np.concatenate([R, [R[0]]]) \
+       - 1/dx * np.concatenate([rho, [rho[0]]]) * (U * pplus(F) + shiftg(U) * pminus(F)) \
+       + 1/dx * np.concatenate([shiftd(rho), [shiftd(rho)[0]]]) * (shiftd(U) * pplus(G) + U * pminus(G))
     U_new = splin.spsolve(M,B)
     return Rho_new, U_new
 
 # Boucle en temps
-dt1 = 1e-4
+dt1 = 1e-3
 duration = 100
 Nt = int(duration / dt1) + 1
 dt = dt1
