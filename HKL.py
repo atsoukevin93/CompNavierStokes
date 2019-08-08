@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
 from scipy.optimize import newton
+from scipy.optimize import fsolve
 from ToolBox import *
 # import rusanov.Rusanov as Ru
 from Diffusion1D import *
@@ -36,7 +37,7 @@ FacesCells = mesh.faceCellIDs
 
 # Paramètre p(rho)=c*rho^{gamma}
 c = 1.
-gamma = 2.
+gamma = 3.
 
 # les inconnus
 U = FaceVariable(name='$u$', mesh=mesh, value=0.)
@@ -45,9 +46,9 @@ Rho1 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
 Rho2 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
 
 # Donnée initiale sur rho
-# Rho0.setValue(1., where=x >= 0.7)
-# Rho0.setValue(1., where=x < 0.5)
-# Rho0.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
+Rho0.setValue(1., where=x >= 0.7)
+Rho0.setValue(1., where=x < 0.5)
+Rho0.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 Rho1.setValue(1., where=x >= 0.7)
 Rho1.setValue(1., where=x < 0.5)
@@ -79,12 +80,17 @@ def Renormalization_step(P0, P1, c, gamma, L, dx, tol, maxiter):
     Rho1 = barotrope_Ptorho(P1, c, gamma)
 
     Diff1 = Build_Diffusion_Matrix(N, inv_vect(Phi_Rho(Rho1)), dx)
+    # print('Diff1 :',Diff1.todense())
     Diff2 = Build_Diffusion_Matrix(N, inv_vect(Phi_Rho(Rho1) * Phi_Rho(Rho0)) ** 0.5, dx)
-
-    P_tild = splin.spsolve(Diff1.tocsc(), numerix.dot(Diff2, P1))
+    # print('Diff2 :', Diff2.todense())
+    P_tild = splin.gmres(Diff1.tocsc(), numerix.dot(Diff2, P1))[0]
     M=dx*np.sum(Rho0)
-    X=0
-    Cnst=newton(C_pressure,X,args=[P_tild,c,gamma,M,dx],tol=tol,maxiter=maxiter)
+    X_cop=c*(M/L)**(gamma)
+    # print('M: ',M)
+    # print('Ptild: ', P_tild)
+    # print('dx*np.sum(P_tild): ',dx*np.sum(P_tild))
+    Cnst=newton(C_pressure,X_cop,args=[P_tild,c,gamma,M,dx],tol=tol,maxiter=maxiter)
+    # Cnst=(c/L)*M-(dx/L)*np.sum(P_tild)
     return P_tild+Cnst
 
 def pplus(x):
@@ -94,7 +100,7 @@ def pminus(x):
 
 def mu_rho(rho):
     N=len(rho)
-    return 0.00001*rho
+    return 0.01*rho
     # return np.ones(N)
 
 def convection_hkl(U,rho):
@@ -148,6 +154,8 @@ def total_step3(X,P,U,rho,dx,dt):
 def step3(U,P,rho,dx,dt,tol,maxiter):
     rho_cop=np.copy(rho)
     return newton(total_step3,rho_cop,args=(P,U,rho,dx,dt),maxiter=maxiter,tol=tol)
+    # return fsolve(total_step3,rho_cop,args=(P,U,rho,dx,dt),xtol=tol)
+
 
 def step4(U,rho,P0,P1,dx,dt):
     X=((2*dt)/dx)*(shiftd(P1)-P1+P0-shiftd(P0))/(shiftd(rho)+rho)
@@ -158,8 +166,8 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
     P0=barotrope_rhotoP(rho0,c,gamma)
     P1=barotrope_rhotoP(rho1,c,gamma)
     # Step 1
-    # Ptilde=Renormalization_step(P0,P1,c,gamma,L,dx, tol, maxiter)
-    Ptilde=P1
+    Ptilde = Renormalization_step(P0,P1,c,gamma,L,dx, tol, maxiter)
+    # Ptilde=P1
     rhotilde=barotrope_Ptorho(Ptilde,c,gamma)
     # Step 2
     Diag0=(dx/(2*dt))*np.concatenate([rhotilde+shiftd(rhotilde),[(rhotilde+shiftd(rhotilde))[0]]])
@@ -192,6 +200,7 @@ Nt = int(duration / dt1) + 1
 dt = dt1
 tps = 0.
 
+
 while tps <= duration:
 
     tol = 1e-8
@@ -203,8 +212,8 @@ while tps <= duration:
     U.setValue(U2)
     U_fig.setValue((U + shiftg(U))[0:Nvol])
     # raw_input("pause...")
-    print(Rho1)
-    print('vitesse',U)
+    # print(Rho1)
+    # print('vitesse',U)
     tps = tps + dt
     # time.sleep(10)
 
