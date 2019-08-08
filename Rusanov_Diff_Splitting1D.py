@@ -135,7 +135,7 @@ while tps <= duration:
     # Etape Rusanov
     Ustar = Rusanov(U, dt, dx)
     # Ustar=U
-    mu_Rho_star = mu_Rho(Ustar[0], 1)
+    mu_Rho_star = mu_Rho(Ustar[0], 0.00001)
     phi_Rho_star = Phi_Rho(mu_Rho_star)
 
     # Matrice de Diffusion
