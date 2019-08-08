@@ -65,14 +65,9 @@ U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
 
 # Rho1.setValue(np.exp(-(x-0.5)**2)+0.3)
 
+
 def C_pressure(X,P,c,gamma,M, dx):
     return dx*np.sum(((P+X)/c)**(1/gamma))-M
-
-def barotrope_Ptorho(P, c, gamma):
-    return (P/c)**(1/gamma)
-
-def barotrope_rhotoP(rho, c, gamma):
-    return c*rho**gamma
 
 
 def Renormalization_step(P0, P1, c, gamma, L, dx, tol, maxiter):
@@ -94,15 +89,12 @@ def Renormalization_step(P0, P1, c, gamma, L, dx, tol, maxiter):
     # Cnst=(c/L)*M-(dx/L)*np.sum(P_tild)
     return P_tild+Cnst
 
-def pplus(x):
-    return (x+np.abs(x))/2.
-def pminus(x):
-    return (x-np.abs(x))/2.
 
 def mu_rho(rho):
     N=len(rho)
     return 0.01*rho
     # return np.ones(N)
+
 
 def convection_hkl(U,rho):
     N=len(rho)
