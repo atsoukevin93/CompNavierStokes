@@ -15,6 +15,22 @@ def shiftd(x):
     return x[np.arange(-1, b-1, 1)]
 
 
+def pplus(x):
+    return (x+np.abs(x))/2.
+
+
+def pminus(x):
+    return (x-np.abs(x))/2.
+
+
+def barotrope_Ptorho(P, c, gamma):
+    return (P/c)**(1/gamma)
+
+
+def barotrope_rhotoP(rho, c, gamma):
+    return c*rho**gamma
+
+
 def Phi_Rho(mu_Rho):
     if len(mu_Rho)==0:
         raise "Not a Vector"

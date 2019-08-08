@@ -10,7 +10,7 @@ from Diffusion1D import *
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =100
+nx =500
 dx = L / nx
 
 
@@ -40,6 +40,7 @@ gamma = 2.
 # Variables
 U1 = CellVariable(name='$u_1$', mesh=mesh, value=1., hasOld=True) #correspond à rho
 U2 = CellVariable(name='$u_2$', mesh=mesh, value=0., hasOld=True) #correspond à rho*u, donnée initiale de la vitesse nulle
+
 Flux1 = FaceVariable(name="\mathcal{F_1}", mesh=mesh, value=0.)
 Flux2 = FaceVariable(name="\mathcal{F_2}", mesh=mesh, value=0.)
 
@@ -60,18 +61,16 @@ Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], interpolation='spline16
 
 viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
 
- #Rusanov
+#Rusanov
 
+# Fonction Flux
 def Fe(x):
     return np.array([x[1], (((x[1]) ** 2) / x[0]) + c * (x[0]) ** gamma])
 
 
-def Rusanov(U, dt, dx):
-    Flux1 = FaceVariable(name="\mathcal{F_1}", mesh=mesh, value=0.)
-    Flux2 = FaceVariable(name="\mathcal{F_2}", mesh=mesh, value=0.)
-
-    Flux = np.array([Flux1, Flux2])
-
+def Rusanov(Flux1, Flux2, U1, U2, dt, dx):
+    U = np.array([U1,U2])
+    Flux =  np.array([Flux1, Flux2])
     # Calcul du max des valeurs propres
     lambda1 = np.abs((U2 / U1) - numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
     lambda2 = np.abs((U2 / U1) + numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
@@ -93,21 +92,19 @@ def Rusanov(U, dt, dx):
     Flux[1] = shiftg(tem_Flux[1]) - tem_Flux[1]
 
     Unew = U - (dt/dx)*Flux[:, 0:nFaces-1] #Mise à jour de U, Flux=[f0-f-1, f1-f0,....,f-1-f-2,f0-f-1], on coupe le dernier morceau
-
-    U1.setValue(Unew[0])
-    U2.setValue(Unew[1])
-
-    return np.array([U1, U2])
+    U1new = Unew[0]
+    U2new = Unew[1]
+    return np.array([[U1new, U2new],[max_lambdas]])
 
 
 
-def mu_Rho(x,c):
-    return c*x
+def mu_Rho(rho,k):
+    return k*rho
 
 
 
 # Boucle en temps
-dt1 = 1e-2
+dt1 = 1e-4
 duration = 100
 Nt = int(duration / dt1) + 1
 dt = dt1
@@ -119,23 +116,11 @@ while tps <= duration:
 
     if U1.value.any() < 0.:
         break
-    U = np.array([U1, U2])
 
     # Masse
     M=dx*np.sum(U1.value)
-
-    # Les valeurs propres
-    lambda1 = np.abs((U2 / U1) - numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
-    lambda2 = np.abs((U2 / U1) + numerix.sqrt(c * gamma * (U1) ** (gamma - 1)))
-
-    # Correction de Rusanov sur chaque faces
-    max_lambdas = numerix.maximum(numerix.maximum(lambda1[FacesCells[0]], lambda1[FacesCells[1]]),
-                                  numerix.maximum(lambda2[FacesCells[0]], lambda2[FacesCells[1]]))
-
-    # Etape Rusanov
-    Ustar = Rusanov(U, dt, dx)
-    # Ustar=U
-    mu_Rho_star = mu_Rho(Ustar[0], 0.00001)
+    Ustar, max_lambdas = Rusanov(Flux1.value, Flux2.value ,U1.value, U2.value, dt, dx)
+    mu_Rho_star = mu_Rho(Ustar[0], 0.000001)
     phi_Rho_star = Phi_Rho(mu_Rho_star)
 
     # Matrice de Diffusion
@@ -148,10 +133,8 @@ while tps <= duration:
     U1.setValue(Ustar[0])
     U2.setValue(Ustar[0]*U_ustar_new)
 
-
-
     # Condition CFL
-    dt = np.min([dt1, 0.8 * dx / (np.max(max_lambdas.value))])
+    dt = np.min([dt1, 0.8 * dx / (np.max(max_lambdas))])
 
     # Mise à jour du temps
     tps = tps + dt

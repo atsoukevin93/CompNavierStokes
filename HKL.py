@@ -9,6 +9,7 @@ from ToolBox import *
 # import rusanov.Rusanov as Ru
 from Diffusion1D import *
 import time
+import os
 
 
 # Paramètre du maillage 1D
@@ -64,14 +65,9 @@ U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
 
 # Rho1.setValue(np.exp(-(x-0.5)**2)+0.3)
 
+
 def C_pressure(X,P,c,gamma,M, dx):
     return dx*np.sum(((P+X)/c)**(1/gamma))-M
-
-def barotrope_Ptorho(P, c, gamma):
-    return (P/c)**(1/gamma)
-
-def barotrope_rhotoP(rho, c, gamma):
-    return c*rho**gamma
 
 
 def Renormalization_step(P0, P1, c, gamma, L, dx, tol, maxiter):
@@ -93,15 +89,12 @@ def Renormalization_step(P0, P1, c, gamma, L, dx, tol, maxiter):
     # Cnst=(c/L)*M-(dx/L)*np.sum(P_tild)
     return P_tild+Cnst
 
-def pplus(x):
-    return (x+np.abs(x))/2.
-def pminus(x):
-    return (x-np.abs(x))/2.
 
 def mu_rho(rho):
     N=len(rho)
     return 0.01*rho
     # return np.ones(N)
+
 
 def convection_hkl(U,rho):
     N=len(rho)
@@ -184,23 +177,29 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
     return [rho1, rho2, U2]
 
 # figures
-sp1, axes = plt.subplots(1,2)
-
-Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', datamax = 1.5, figaspect='auto')
-
-u_fig = Matplotlib1DViewer(vars=U_fig, axes=axes[1], interpolation='spline16', figaspect='auto')
-
-viewers = MultiViewer(viewers=(Rho_fig, u_fig))
+# sp1, axes = plt.subplots(1,2)
+#
+# Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', datamax = 1.5, figaspect='auto')
+#
+# u_fig = Matplotlib1DViewer(vars=U_fig, axes=axes[1], interpolation='spline16', figaspect='auto')
+#
+# viewers = MultiViewer(viewers=(Rho_fig, u_fig))
 # viewers = MultiViewer(viewers=(Rho_fig))
 
 # Boucle en temps
 dt1 = 1e-4
-duration = 100
+duration = 0.5
 Nt = int(duration / dt1) + 1
 dt = dt1
 tps = 0.
 
-
+test_case_results = np.empty([], dtype=[('t', np.float64),
+                                        ('dt', np.float64),
+                                        ('dx', np.float64),
+                                        ('Rho', np.float64, (Nvol,)),
+                                        ('U', np.float64, (nFaces,))])
+test_case_results = np.delete(test_case_results, 0)
+n=0
 while tps <= duration:
 
     tol = 1e-8
@@ -210,11 +209,25 @@ while tps <= duration:
     Rho0.setValue(rho1)
     Rho1.setValue(rho2)
     U.setValue(U2)
-    U_fig.setValue((U + shiftg(U))[0:Nvol])
+    U_fig.setValue((U + shiftg(U))[0:Nvol]/2.)
+
+    if n % 2 == 0:
+        test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, Rho1, U), dtype=test_case_results.dtype))
     # raw_input("pause...")
     # print(Rho1)
     # print('vitesse',U)
     tps = tps + dt
+    print(tps)
     # time.sleep(10)
+    n = n + 1
+    # viewers.plot()
 
-    viewers.plot()
+dirpath = "data/"
+filename = "hkl_test"
+if not os.path.exists(dirpath):
+    os.makedirs(dirpath)
+
+with open(dirpath+filename, "wb") as fi:
+    np.save(fi, test_case_results)
+    # np.save(fi, TestCaseParam)
+    fi.close()
