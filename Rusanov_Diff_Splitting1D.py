@@ -6,7 +6,7 @@ import scipy.sparse.linalg as splin;
 from ToolBox import *
 # import rusanov.Rusanov as Ru
 from Diffusion1D import *
-
+import os
 
 # Paramètre du maillage 1D
 L = 1.0
@@ -53,13 +53,13 @@ U1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 
 # Paramètres graphiques
-sp1, axes = plt.subplots(1, 2)
-
-Rho = Matplotlib1DViewer(vars=U1, axes=axes[0], interpolation='spline16', figaspect='auto')
-
-Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], interpolation='spline16', figaspect='auto')
-
-viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
+# sp1, axes = plt.subplots(1, 2)
+#
+# Rho = Matplotlib1DViewer(vars=U1, axes=axes[0], interpolation='spline16', figaspect='auto')
+#
+# Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], interpolation='spline16', figaspect='auto')
+#
+# viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
 
 #Rusanov
 
@@ -102,25 +102,35 @@ def mu_Rho(rho,k):
     return k*rho
 
 
-
 # Boucle en temps
 dt1 = 1e-4
-duration = 100
+duration = 1.5
 Nt = int(duration / dt1) + 1
 dt = dt1
 tps = 0.
 
 Id = sp.lil_matrix(sp.spdiags(numerix.ones(nVol), [0], nVol, nVol))
+test_case_results = np.empty([], dtype=[('t', np.float64),
+                                        ('dt', np.float64),
+                                        ('dx', np.float64),
+                                        ('Rho', np.float64, (nVol,)),
+                                        ('U', np.float64, (nVol,))])
+test_case_results = np.delete(test_case_results, 0)
 
+test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, U1, U2/U1), dtype=test_case_results.dtype))
+n=0
 while tps <= duration:
 
     if U1.value.any() < 0.:
         break
 
+    if n % 2 == 0:
+        test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, U1, U2/U1), dtype=test_case_results.dtype))
+
     # Masse
     M=dx*np.sum(U1.value)
-    Ustar, max_lambdas = Rusanov(Flux1.value, Flux2.value ,U1.value, U2.value, dt, dx)
-    mu_Rho_star = mu_Rho(Ustar[0], 0.000001)
+    Ustar, max_lambdas = Rusanov(Flux1.value, Flux2.value,U1.value, U2.value, dt, dx)
+    mu_Rho_star = mu_Rho(Ustar[0], 0.01)
     phi_Rho_star = Phi_Rho(mu_Rho_star)
 
     # Matrice de Diffusion
@@ -134,7 +144,7 @@ while tps <= duration:
     U2.setValue(Ustar[0]*U_ustar_new)
 
     # Condition CFL
-    dt = np.min([dt1, 0.8 * dx / (np.max(max_lambdas))])
+    # dt = np.min([dt1, 0.8 * dx / (np.max(max_lambdas))])
 
     # Mise à jour du temps
     tps = tps + dt
@@ -142,5 +152,15 @@ while tps <= duration:
     print('time:{0}, dt: {1}, M: {2}'.format(tps, dt, M))
     # if np.isnan(dt):
     #     break
+    n = n + 1
+    # viewers.plot()
 
-    viewers.plot()
+dirpath = "data/"
+filename = "rusanov_splitting_test"
+if not os.path.exists(dirpath):
+    os.makedirs(dirpath)
+
+with open(dirpath+filename, "wb") as fi:
+    np.save(fi, test_case_results)
+    # np.save(fi, TestCaseParam)
+    fi.close()
