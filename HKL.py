@@ -38,7 +38,7 @@ FacesCells = mesh.faceCellIDs
 
 # Paramètre p(rho)=c*rho^{gamma}
 c = 1.
-gamma = 3.
+gamma = 2.
 
 # les inconnus
 U = FaceVariable(name='$u$', mesh=mesh, value=0.)
@@ -186,9 +186,12 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
 # viewers = MultiViewer(viewers=(Rho_fig, u_fig))
 # viewers = MultiViewer(viewers=(Rho_fig))
 
+
 # Boucle en temps
+
+
 dt1 = 1e-4
-duration = 0.5
+duration = 1.5
 Nt = int(duration / dt1) + 1
 dt = dt1
 tps = 0.
@@ -199,8 +202,13 @@ test_case_results = np.empty([], dtype=[('t', np.float64),
                                         ('Rho', np.float64, (Nvol,)),
                                         ('U', np.float64, (nFaces,))])
 test_case_results = np.delete(test_case_results, 0)
+
+# test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, Rho0, U), dtype=test_case_results.dtype))
 n=0
 while tps <= duration:
+
+    if n % 2 == 0:
+        test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, Rho0, U), dtype=test_case_results.dtype))
 
     tol = 1e-8
     maxiter = 2000
@@ -211,8 +219,6 @@ while tps <= duration:
     U.setValue(U2)
     U_fig.setValue((U + shiftg(U))[0:Nvol]/2.)
 
-    if n % 2 == 0:
-        test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, Rho1, U), dtype=test_case_results.dtype))
     # raw_input("pause...")
     # print(Rho1)
     # print('vitesse',U)
