@@ -13,25 +13,35 @@ import matplotlib.animation as animation
 plt.ion()
 
 dirpath = "data/"
-filename = "hkl_test"
+filename_hkl = "hkl_test"
 
-files = os.listdir(dirpath)
-files.sort()
+# files = os.listdir(dirpath)
+# files.sort()
+#
+# numb_to_test = 1
 
-numb_to_test = 1
+data_hkl = np.load(dirpath+filename_hkl)
 
-data = np.load(dirpath+filename)
+Rhos_hkl = data_hkl['Rho']
+Us_hkl = data_hkl['U']
 
-dts = data['dt']
-dxs = data['dx']
-Rhos = data['Rho']
-Us = data['U']
-t = data['t']
+# --------------------- Time and Space steps ---------------------------------
+
+dts = data_hkl['dt']
+dxs = data_hkl['dx']
+t = data_hkl['t']
 Nt = t.shape[0]
-Nvol = Rhos.shape[1]
+Nvol = Rhos_hkl.shape[1]
 dx = float(dxs[0])
 # dt = float(dxs[0])
 
+# -------------------- data for the rusanov method ----------------------------
+filename_rusanov = "rusanov_splitting_test"
+
+data_rusanov = np.load(dirpath+filename_rusanov)
+
+Rhos_rusanov = data_rusanov['Rho']
+Us_rusanov = data_rusanov['U']
 
 # Données du maillage
 # Centres des mailles
@@ -40,10 +50,13 @@ x, = mesh.cellCenters
 x_faces = mesh.faceCenters
 
 # les inconnus
-U = FaceVariable(name='$u$', mesh=mesh, value=0.)
+U_hkl = FaceVariable(name='$u$', mesh=mesh, value=0.)
 # Rho0 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
-Rho1 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
-U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
+Rho_hkl = CellVariable(name='$\\rho_{hkl}$', mesh=mesh, value=0., hasOld=True)
+U_fig_hkl = CellVariable(name='$U_{hkl}$', mesh=mesh, value=0., hasOld=True)
+
+Rho_rusanov = CellVariable(name='$\\rho_{rus}$', mesh=mesh, value=0., hasOld=True)
+U_rusanov = CellVariable(name='$U_{rus}$', mesh=mesh, value=0., hasOld=True)
 
 
 # sp, spa = plt.subplots(1, 2)
@@ -65,23 +78,30 @@ U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
 
 sp1, axes = plt.subplots(1,2)
 
-Rho_fig = Matplotlib1DViewer(vars=Rho1, axes=axes[0], interpolation='spline16', datamax = 1.5, figaspect='auto')
+Rho_fig = Matplotlib1DViewer(vars=(Rho_hkl, Rho_rusanov), axes=axes[0], interpolation='spline16', datamax=1.5, figaspect='auto')
 
-u_fig = Matplotlib1DViewer(vars=U_fig, axes=axes[1], interpolation='spline16', figaspect='auto')
+u_fig = Matplotlib1DViewer(vars=(U_fig_hkl, U_rusanov), axes=axes[1], interpolation='spline16', figaspect='auto')
 
 viewers = MultiViewer(viewers=(Rho_fig, u_fig))
 
-if not os.path.exists("figures/"):
-    os.makedirs("figures/")
+if not os.path.exists("figures/hkl_vs_rusanov_tests"):
+    os.makedirs("figures/hkl_vs_rusanov_tests")
+
+plt.rcParams['font.weight'] = 'bold'
+plt.rcParams.update({'font.size': 15})
 
 for i in range(Nt):
-    Rho1.setValue(Rhos[i])
-    U.setValue(Us[i])
-    U_fig.setValue((U + shiftg(U))[0:Nvol] / 2.)
+    Rho_hkl.setValue(Rhos_hkl[i])
+    U_hkl.setValue(Us_hkl[i])
+    U_fig_hkl.setValue((U_hkl + shiftg(U_hkl))[0:Nvol] / 2.)
+
+    Rho_rusanov.setValue(Rhos_rusanov[i])
+    U_rusanov.setValue(Us_rusanov[i])
+
     viewers.plot()
-    plt.title("HKL Method tps={0}".format(str(round(t[i], 2))))
+    plt.title("HKL vs Rusanov. tps={0}".format(str(round(t[i], 2))))
     if i % 100 == 0:
-        plt.savefig('figures/hkl_test_tps{0}.png'.format(i))
+        plt.savefig('figures/hkl_vs_rusanov_tests/hkl_vs_rusanov_test_tps{0}.png'.format(i))
     # plt.close()
 
 
