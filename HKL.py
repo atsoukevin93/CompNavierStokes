@@ -92,7 +92,7 @@ def Renormalization_step(P0, P1, c, gamma, L, dx, tol, maxiter):
 
 def mu_rho(rho):
     N=len(rho)
-    return 0.01*rho
+    return (1e-6)*rho
     # return np.ones(N)
 
 
@@ -159,8 +159,8 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
     P0=barotrope_rhotoP(rho0,c,gamma)
     P1=barotrope_rhotoP(rho1,c,gamma)
     # Step 1
-    Ptilde = Renormalization_step(P0,P1,c,gamma,L,dx, tol, maxiter)
-    # Ptilde=P1
+    # Ptilde = Renormalization_step(P0,P1,c,gamma,L,dx, tol, maxiter)
+    Ptilde=P1
     rhotilde=barotrope_Ptorho(Ptilde,c,gamma)
     # Step 2
     Diag0=(dx/(2*dt))*np.concatenate([rhotilde+shiftd(rhotilde),[(rhotilde+shiftd(rhotilde))[0]]])
@@ -229,7 +229,7 @@ while tps <= duration:
     # viewers.plot()
 
 dirpath = "data/"
-filename = "hkl_test"
+filename = "hkl_test_euler"
 if not os.path.exists(dirpath):
     os.makedirs(dirpath)
 

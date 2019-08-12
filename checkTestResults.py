@@ -12,8 +12,21 @@ import matplotlib.animation as animation
 
 plt.ion()
 
+
+def l2_error(U, dx, ax):
+    return np.sqrt(np.sum(dx*U*U, axis=ax))
+
+
+def l1_error(U, dx, ax):
+    return np.sum(np.abs(dx*U), axis=ax)
+
+
+def linf_error(U, ax):
+    return np.max(np.abs(U), axis=ax)
+
+
 dirpath = "data/"
-filename_hkl = "hkl_test"
+filename_hkl = "hkl_test_euler"
 
 # files = os.listdir(dirpath)
 # files.sort()
@@ -36,7 +49,7 @@ dx = float(dxs[0])
 # dt = float(dxs[0])
 
 # -------------------- data for the rusanov method ----------------------------
-filename_rusanov = "rusanov_splitting_test"
+filename_rusanov = "rusanov_splitting_test_euler"
 
 data_rusanov = np.load(dirpath+filename_rusanov)
 
@@ -84,8 +97,10 @@ u_fig = Matplotlib1DViewer(vars=(U_fig_hkl, U_rusanov), axes=axes[1], interpolat
 
 viewers = MultiViewer(viewers=(Rho_fig, u_fig))
 
-if not os.path.exists("figures/hkl_vs_rusanov_tests"):
-    os.makedirs("figures/hkl_vs_rusanov_tests")
+test_dir_path = "figures/hkl_vs_rusanov_tests/hkl_vs_rusanov_Euler_test/"
+
+if not os.path.exists(test_dir_path):
+    os.makedirs(test_dir_path)
 
 plt.rcParams['font.weight'] = 'bold'
 plt.rcParams.update({'font.size': 15})
@@ -100,12 +115,18 @@ for i in range(Nt):
 
     viewers.plot()
     plt.title("HKL vs Rusanov. tps={0}".format(str(round(t[i], 2))))
-    if i % 100 == 0:
-        plt.savefig('figures/hkl_vs_rusanov_tests/hkl_vs_rusanov_test_tps{0}.png'.format(i))
+
+    if i % 50 == 0:
+        plt.savefig(test_dir_path+'hkl_vs_rusanov_euler_test_tps{0}.png'.format(i))
     # plt.close()
 
+# --------------------------------------L2 error---------------------------------------
+error_l2 = l2_error(Rhos_hkl-Rhos_rusanov[1:Nt+1], dx, 1)
+error_l1 = l1_error(Rhos_hkl-Rhos_rusanov[1:Nt+1], dx, 1)
+error_linf = linf_error(Rhos_hkl-Rhos_rusanov[1:Nt+1], 1)
 
-
+#
+# plt.plot(t, error_l1)
 # fig = plt.figure()  # import matplotlib.animation as animationinitialise la figure
 
 
