@@ -30,7 +30,7 @@ nFaces = mesh.numberOfFaces
 
 # Faces associées aux cellules (en périodique)
 FacesCells = mesh.faceCellIDs
-
+FacesCells[1][nFaces-1] = 0
 
 # Paramètre p(rho)=c*rho^{gamma}
 c = 1.
@@ -117,7 +117,7 @@ test_case_results = np.empty([], dtype=[('t', np.float64),
                                         ('U', np.float64, (nVol,))])
 test_case_results = np.delete(test_case_results, 0)
 
-test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, U1, U2/U1), dtype=test_case_results.dtype))
+# test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, U1, U2/U1), dtype=test_case_results.dtype))
 n=0
 while tps <= duration:
 
@@ -129,8 +129,8 @@ while tps <= duration:
 
     # Masse
     M=dx*np.sum(U1.value)
-    Ustar, max_lambdas = Rusanov(Flux1.value, Flux2.value,U1.value, U2.value, dt, dx)
-    mu_Rho_star = mu_Rho(Ustar[0], 0.01)
+    Ustar, max_lambdas = Rusanov(Flux1.value, Flux2.value, U1.value, U2.value, dt, dx)
+    mu_Rho_star = mu_Rho(Ustar[0], 1e-6)
     phi_Rho_star = Phi_Rho(mu_Rho_star)
 
     # Matrice de Diffusion
@@ -156,7 +156,7 @@ while tps <= duration:
     # viewers.plot()
 
 dirpath = "data/"
-filename = "rusanov_splitting_test"
+filename = "rusanov_splitting_test_euler"
 if not os.path.exists(dirpath):
     os.makedirs(dirpath)
 
