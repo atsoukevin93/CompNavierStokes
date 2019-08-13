@@ -103,7 +103,7 @@ def mu_Rho(rho,k):
 
 
 # Boucle en temps
-dt1 = 1e-4
+dt1 = 3e-4
 duration = 1.5
 Nt = int(duration / dt1) + 1
 dt = dt1
@@ -130,7 +130,7 @@ while tps <= duration:
     # Masse
     M=dx*np.sum(U1.value)
     Ustar, max_lambdas = Rusanov(Flux1.value, Flux2.value, U1.value, U2.value, dt, dx)
-    mu_Rho_star = mu_Rho(Ustar[0], 1e-6)
+    mu_Rho_star = mu_Rho(Ustar[0], 1e-3)
     phi_Rho_star = Phi_Rho(mu_Rho_star)
 
     # Matrice de Diffusion
@@ -156,7 +156,7 @@ while tps <= duration:
     # viewers.plot()
 
 dirpath = "data/"
-filename = "rusanov_splitting_test_euler"
+filename = "rusanov_splitting_test_new"
 if not os.path.exists(dirpath):
     os.makedirs(dirpath)
 
