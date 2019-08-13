@@ -1,6 +1,6 @@
 from fipy import *
 import numpy as np
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
 from scipy.optimize import newton
@@ -151,8 +151,9 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
 # Boucle en temps
 def test_process(param_to_test):
     # nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000]
-    nxs = [5000, 6000, 7000, 8000, 9000, 10000]
+    nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 60000, 100000]
     test_exe(nxs[param_to_test])
+
 
 def test_exe(ny):
     # Parametre du maillage 1D
@@ -196,8 +197,8 @@ def test_exe(ny):
 
     # U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
 
-    dt1 = 1e-4
-    duration = 1.5
+    dt1 = 1e-6
+    duration = 0.1
     Nt = int(duration / dt1) + 1
     dt = dt1
     tps = 0.
@@ -245,7 +246,7 @@ def test_exe(ny):
 
 
 if __name__ == '__main__':
-    numbers = np.arange(0, 6, 1)
+    numbers = np.arange(0, 16, 1)
     # [, 4, 5, 6, 7, 8, 9, 10]
     # numbers = [0, 1]
     procs = []
