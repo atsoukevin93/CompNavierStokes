@@ -1,9 +1,9 @@
 from fipy import *
 import numpy as np
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
-from ToolBox import  *
+from ToolBox import *
 
 
 def Build_Diffusion_Matrix(nVol, Phi_Rho, dx):
