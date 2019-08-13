@@ -1,6 +1,6 @@
 from fipy import *
 import numpy as np
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
 from ToolBox import *
@@ -65,7 +65,7 @@ def mu_Rho(rho,k):
 
 def test_process(param_to_test):
     # nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000]
-    nxs = [5000, 6000, 7000, 8000, 9000, 10000]
+    nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 60000, 100000]
     print('--------------------TEST CASE: ' + str(nxs[param_to_test]) + ' -------------------------')
     print('Processus: {0}'.format(os.getpid()))
     test_exe(nxs[param_to_test])
@@ -106,8 +106,8 @@ def test_exe(ny):
     U1.setValue((np.sqrt(2.)) ** (1. / gamma), where=(x > 0.5) & (x < 0.7))
 
     # Boucle en temps
-    dt1 = 1e-4
-    duration = 1.5
+    dt1 = 1e-6
+    duration = 0.1
     Nt = int(duration / dt1) + 1
     dt = dt1
     tps = 0.
@@ -170,7 +170,7 @@ def test_exe(ny):
 
 
 if __name__ == '__main__':
-    numbers = np.arange(0, 6, 1)
+    numbers = np.arange(0, 16, 1)
     # [, 4, 5, 6, 7, 8, 9, 10]
     # numbers = [5, 6, 7]
     procs = []
