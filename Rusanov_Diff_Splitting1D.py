@@ -1,6 +1,6 @@
 from fipy import *
 import numpy as np
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
 from ToolBox import *
@@ -10,7 +10,7 @@ import os
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =500
+nx =1000
 dx = L / nx
 
 
@@ -94,7 +94,7 @@ def Rusanov(Flux1, Flux2, U1, U2, dt, dx):
     Unew = U - (dt/dx)*Flux[:, 0:nFaces-1] #Mise à jour de U, Flux=[f0-f-1, f1-f0,....,f-1-f-2,f0-f-1], on coupe le dernier morceau
     U1new = Unew[0]
     U2new = Unew[1]
-    return np.array([[U1new, U2new],[max_lambdas]])
+    return np.array([[U1new, U2new], [max_lambdas]])
 
 
 
@@ -103,7 +103,7 @@ def mu_Rho(rho,k):
 
 
 # Boucle en temps
-dt1 = 3e-4
+dt1 = 1e-6
 duration = 1.5
 Nt = int(duration / dt1) + 1
 dt = dt1
@@ -155,12 +155,12 @@ while tps <= duration:
     n = n + 1
     # viewers.plot()
 
-dirpath = "data/"
-filename = "rusanov_splitting_test_new"
-if not os.path.exists(dirpath):
-    os.makedirs(dirpath)
-
-with open(dirpath+filename, "wb") as fi:
-    np.save(fi, test_case_results)
-    # np.save(fi, TestCaseParam)
-    fi.close()
+# dirpath = "data/"
+# filename = "rusanov_splitting_test_new"
+# if not os.path.exists(dirpath):
+#     os.makedirs(dirpath)
+#
+# with open(dirpath+filename, "wb") as fi:
+#     np.save(fi, test_case_results)
+#     # np.save(fi, TestCaseParam)
+#     fi.close()
