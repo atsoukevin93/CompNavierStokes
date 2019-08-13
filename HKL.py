@@ -92,22 +92,34 @@ def Renormalization_step(P0, P1, c, gamma, L, dx, tol, maxiter):
 
 def mu_rho(rho):
     N=len(rho)
-    return (1e-6)*rho
+    return (1e-3)*rho
     # return np.ones(N)
 
 
 def convection_hkl(U,rho):
     N=len(rho)
-    F=(U+shiftg(U))/2.
-    rho1=np.concatenate([rho,[rho[0]]])
-    rhoN=np.concatenate([[rho[N-1]],rho])
-    diag0=rho1*pplus(F)-rhoN*pminus(shiftd(F))
-    diag0p=np.concatenate([[0],rho*(pminus(F)[0:N])])
-    diag0m=np.concatenate([-rho*(pplus(F)[0:N]),[0]])
-    M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N+1, N+1))
-    M[0,N]=-rho[N-1]*pplus((U[0]+U[N])/2.)
-    M[N,0]=+rho[0]*pminus((U[0]+U[N])/2.)
-    return M
+    # F=(U+shiftg(U))/2.
+    # rho1=np.concatenate([rho,[rho[0]]])
+    # rhoN=np.concatenate([[rho[N-1]],rho])
+    # diag0=rho1*pplus(F)-rhoN*pminus(shiftd(F))
+    # diag0p=np.concatenate([[0],rho*(pminus(F)[0:N])])
+    # diag0m=np.concatenate([-rho*(pplus(F)[0:N]),[0]])
+    # M = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N+1, N+1))
+    # M[0,N]=-rho[N-1]*pplus((U[0]+U[N])/2.)
+    # M[N,0]=+rho[0]*pminus((U[0]+U[N])/2.)
+    # return M
+    rho_conv = rho  # On peut modifier ici en prennant rho_new
+    U = U1
+    Flux_conv = rho_conv * pplus(U1[1:N + 1]) + shiftd(rho_conv) * pminus(U1[1:N + 1]) + shiftd(rho_conv) * pplus(
+        U1[0:N]) + rho_conv * pminus(U1[0:N])
+    Flux_conv_per = np.concatenate([[Flux_conv[N - 1]], Flux_conv, [Flux_conv[0]]])
+    diag0_conv = pplus(Flux_conv_per[1:N + 2]) - pminus(Flux_conv_per[0:N + 1])
+    diag0p_conv = pminus(Flux_conv_per[0:N + 1])
+    diag0m_conv = -pplus(Flux_conv_per[1:N + 2])
+    A_conv = sp.lil_matrix(sp.spdiags([diag0m_conv, diag0_conv, diag0p_conv], [-1, 0, 1], N + 1, N + 1))
+    A_conv[0, N] = -pplus(Flux_conv[N - 1])
+    A_conv[N, 0] = pminus(Flux_conv[0])
+    return A_conv
 
 def diffusion_hkl(rho,dx):
     N=len(rho)
@@ -190,7 +202,7 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
 # Boucle en temps
 
 
-dt1 = 1e-4
+dt1 = 3e-4
 duration = 1.5
 Nt = int(duration / dt1) + 1
 dt = dt1
@@ -229,7 +241,7 @@ while tps <= duration:
     # viewers.plot()
 
 dirpath = "data/"
-filename = "hkl_test_euler"
+filename = "hkl_test_new"
 if not os.path.exists(dirpath):
     os.makedirs(dirpath)
 
