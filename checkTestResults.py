@@ -186,19 +186,20 @@ for i in range(Ntest):
     dxs = data_rusanov['dx']
     t = data_rusanov['t']
     Nt = t.shape[0]
-    Nvol = Rhos_rusanov.shape[1]
     dx = float(dxs[0])
     Rhos_rusanov = data_rusanov['Rho']
+    Nvol = Rhos_rusanov.shape[1]
     Us_rusanov = data_rusanov['U']
 
     data_hkl = np.load(dirpath + Num_method[1]+file_suffix + hkl_files[i].split('_')[-1])
     Rhos_hkl = data_hkl['Rho']
     Us_hkl = data_hkl['U']
-    Us_hkl_new = np.zeros(Us_hkl.shape)
+    Us_hkl_new = np.zeros((Us_hkl.shape[0], Us_hkl.shape[1]-1))
     rho_L2_norms = np.append(rho_L2_norms, l2_error(l2_error(Rhos_hkl-Rhos_rusanov, dx, 1), dts, 0))
 
     for i in range(Nt):
         Us_hkl_new[i] = (Us_hkl[i] + shiftg(Us_hkl[i]))[0:Nvol]/2.
+
     u_L2_norms = np.append(u_L2_norms, l2_error(l2_error(Us_hkl_new-Us_rusanov, dx, 1), dts, 0))
 
 hs = L/get_nsteps(rusanov_files)
@@ -206,11 +207,19 @@ hs.sort()
 
 plt.rcParams['font.weight'] = 'bold'
 plt.rcParams.update({'font.size': 15})
+
 plt.title('$L^2_t L^2_x$ error Hkl vs rusanov')
 plt.xlabel('$\Delta_x$')
 plt.ylabel('$\Vert \\rho_{hkl} - \\rho_{rus} \Vert_{L^2_t L^2_x}$')
-plt.plot(hs, rho_L2_norms[np.arange(Ntest - 1, -1, -1)], linewidth=3)
-plt.plot(hs, u_L2_norms[np.arange(Ntest - 1, -1, -1)], linewidth=3)
+plt.plot(hs, rho_L2_norms[np.arange(Ntest - 1, -1, -1)], linewidth=3, label='$\\rho$')
+
+
+plt.title('$L^2_t L^2_x$ error Hkl vs rusanov')
+plt.xlabel('$\Delta_x$')
+plt.ylabel('$\Vert u_{hkl} - u_{rus} \Vert_{L^2_t L^2_x}$')
+plt.plot(hs, u_L2_norms[np.arange(Ntest - 1, -1, -1)], linewidth=3, label='$u$')
+
+plt.legend()
 # --------------------------------------L2 error---------------------------------------
 # error_l2 = l2_error(Rhos_hkl-Rhos_rusanov[1:Nt+1], dx, 1)
 # error_l1 = l1_error(Rhos_hkl-Rhos_rusanov[1:Nt+1], dx, 1)
