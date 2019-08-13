@@ -64,7 +64,8 @@ def mu_Rho(rho,k):
 
 
 def test_process(param_to_test):
-    nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000]
+    # nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000]
+    nxs = [5000, 6000, 7000, 8000, 9000, 10000]
     print('--------------------TEST CASE: ' + str(nxs[param_to_test]) + ' -------------------------')
     print('Processus: {0}'.format(os.getpid()))
     test_exe(nxs[param_to_test])
@@ -169,9 +170,9 @@ def test_exe(ny):
 
 
 if __name__ == '__main__':
-    # numbers = np.arange(0, 8, 1)
+    numbers = np.arange(0, 6, 1)
     # [, 4, 5, 6, 7, 8, 9, 10]
-    numbers = [5, 6, 7]
+    # numbers = [5, 6, 7]
     procs = []
     for index, number in enumerate(numbers):
         proc = Process(target=test_process, args=(number,))
