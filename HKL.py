@@ -1,6 +1,6 @@
 from fipy import *
 import numpy as np
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
 from scipy.optimize import newton
@@ -14,7 +14,7 @@ import os
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =500
+nx =100000
 dx = L / nx
 
 
@@ -202,7 +202,7 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
 # Boucle en temps
 
 
-dt1 = 3e-4
+dt1 = 1e-6
 duration = 1.5
 Nt = int(duration / dt1) + 1
 dt = dt1
