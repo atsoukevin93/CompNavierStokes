@@ -16,7 +16,7 @@ import time
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =20
+nx =250
 dx = L / nx
 
 
@@ -64,19 +64,19 @@ U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
 
 def mu_rho(rho):
     N=len(rho)
-    return 0.001*rho
+    return 0.0001*rho
 
 
 def Explicit_Staggered(rho, U1, dt, dx):
     N = len(rho)
     # equation de consevation de la masse
-    diag0 = np.ones(N)  -(dt/dx) * (pplus(U1[1: N+1]) - pminus(U1[0: N]))
-    diag0m= (dt/dx) * (pminus(U1[1:N+1]))
-    diag0p= -(dt/dx) * (pplus(U1[0: N]))
-    A = sp.lil_matrix(sp.spdiags([diag0m, diag0, diag0p], [-1, 0, 1], N, N))
-    A[0, N-1] = dt/dx * (pplus(U1[0]))
-    A[N-1, 0] = -dt/dx *(pminus(U1[N]))
-    Rho_new= A.dot(rho)
+    Diag0_tr=pplus(U1[1:N+1])-pminus(U1[0:N])
+    Diag0p_tr=pminus(U1[0:N])
+    Diag0m_tr=-pplus(U1[1:N+1])
+    A_tr = sp.lil_matrix(sp.spdiags([Diag0m_tr, Diag0_tr, Diag0p_tr], [-1, 0, 1], N, N))
+    A_tr[0,N-1]=-pplus(U1[0])
+    A_tr[N-1,0]=pminus(U1[N])
+    Rho_new=rho -(dt/dx)*A_tr.dot(rho)
 
     Rho_new_inter=(Rho_new+shiftd(Rho_new))/2.
     Rho_newF=np.concatenate([Rho_new_inter,[Rho_new_inter[0]]])
@@ -123,13 +123,13 @@ def Explicit_Staggered(rho, U1, dt, dx):
     A_diff=(1/dx)*M
 
     # Terme de pression
-    P=barotrope_rhotoP(rho,c,gamma)
+    P=barotrope_rhotoP(Rho_new,c,gamma)
     P_inter=P-shiftd(P)
     P_dynamic=np.concatenate([P_inter,[P_inter[0]]])
 
     # Calcul de U en n+1
-    Aleft=sp.lil_matrix(sp.spdiags([(dx/dt)*Rho_newF], [0], N+1, N+1))
-    V_right=(dx/dt)*rhoF*U1+A_conv.dot(U1)+P_dynamic+A_diff.dot(U1)
+    Aleft=sp.lil_matrix(sp.spdiags([(dx/dt)*Rho_newF], [0], N+1, N+1))+A_diff
+    V_right=(dx/dt)*rhoF*U1-P_dynamic-A_conv.dot(U1)
     U_new=splin.spsolve(Aleft,V_right)
 
     # U_test=splin.spsolve(sp.lil_matrix(sp.spdiags([(dx/dt)*Rho_newF], [0], N+1, N+1)),P_dynamic)
@@ -137,6 +137,19 @@ def Explicit_Staggered(rho, U1, dt, dx):
     # U_test_2=splin.gmres(300*np.eye(N+1)+A_diff,np.ones(N+1))
 
     return Rho_new, U_new
+
+def test_transport(rho, U1, dt, dx):
+    N = len(rho)
+    # equation de consevation de la masse
+    Diag0_tr=pplus(U1[1:N+1])-pminus(U1[0:N])
+    Diag0p_tr=pminus(U1[0:N])
+    Diag0m_tr=-pplus(U1[1:N+1])
+    A_tr = sp.lil_matrix(sp.spdiags([Diag0m_tr, Diag0_tr, Diag0p_tr], [-1, 0, 1], N, N))
+    A_tr[0,N-1]=-pplus(U1[0])
+    A_tr[N-1,0]=pminus(U1[N])
+    Rho_new=rho -(dt/dx)*A_tr.dot(rho)
+    return Rho_new
+
 
 # Boucle en temps
 dt1 = 3e-4
@@ -155,6 +168,7 @@ viewers = MultiViewer(viewers=(Rho_fig, u_fig))
 
 while tps <= duration:
     Rho_new , U_new = Explicit_Staggered(Rho.value, U.value, dt, dx)
+    # Rho_new = test_transport(Rho.value, U.value, dt, dx)
     Rho.setValue(Rho_new)
     U.setValue(U_new)
     U_fig.setValue((U + shiftg(U))[0:Nvol]/2)
