@@ -152,6 +152,7 @@ def HKL(rho0,rho1,U1,dx,dt,L,c,gamma,tol,maxiter):
 def test_process(param_to_test):
     # nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000]
     nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 60000, 100000]
+    # nxs = [7000]
     test_exe(nxs[param_to_test])
 
 
@@ -246,9 +247,9 @@ def test_exe(ny):
 
 
 if __name__ == '__main__':
-    numbers = np.arange(0, 16, 1)
+    # numbers = np.arange(0, 16, 1)
     # [, 4, 5, 6, 7, 8, 9, 10]
-    # numbers = [0, 1]
+    numbers = [0]
     procs = []
     for index, number in enumerate(numbers):
         proc = Process(target=test_process, args=(number,))

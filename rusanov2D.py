@@ -14,8 +14,8 @@ x, = mesh.cellCenters
 # Nface=mesh.numberOfFaces
 
 # ----------------------------------- A 2D Unstructured Mesh----------------------
-# Lx = 40.0
-# Ly = 80.
+Lx = 40.0
+Ly = 80.
 # nx = 40
 # dx = Lx / nx
 #
@@ -61,9 +61,9 @@ x, = mesh.cellCenters
 #          ''' % locals())
 
 
-# mesh = Grid2D(dx, dx, nx, nx, Lx=Lx, Ly=Ly)
+mesh = Grid2D(dx, dx, nx, nx, Lx=Lx, Ly=Ly)
 
-# x, y = mesh.cellCenters
+x, y = mesh.cellCenters
 
 # -------------------------------------------------------------------------------------------------
 nVol = mesh.numberOfCells

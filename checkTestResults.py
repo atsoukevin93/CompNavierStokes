@@ -122,8 +122,8 @@ def linf_error(U, ax):
 
 
 # ------------------------------------- Error between Hkl and Rusanov Method -------------------------------------
-dirpath = "data/"
-Num_method = ['rusanov_splitting', 'hkl']
+dirpath = "data.old1/"
+Num_method = ['rusanov_splitting', 'Staggered']
 files = os.listdir(dirpath)
 Nfiles = len(files)
 file_suffix = '_NS_test_'
@@ -169,7 +169,7 @@ def sort_files(file_tab):
 for i in range(Nfiles):
     if files[i].startswith('rusanov'):
         rusanov_files.append(files[i])
-    if files[i].startswith('hkl'):
+    if files[i].startswith('Staggered'):
         hkl_files.append(files[i])
 
 rusanov_files = sort_files(rusanov_files)
@@ -178,7 +178,7 @@ Ntest = len(rusanov_files)
 
 rho_L2_norms = np.array([])
 u_L2_norms = np.array([])
-
+# limit = 50000
 for i in range(Ntest):
 
     data_rusanov = np.load(dirpath + Num_method[0]+file_suffix + rusanov_files[i].split('_')[-1])
@@ -190,17 +190,25 @@ for i in range(Ntest):
     Rhos_rusanov = data_rusanov['Rho']
     Nvol = Rhos_rusanov.shape[1]
     Us_rusanov = data_rusanov['U']
+    # Us_rusanov.shape
+
 
     data_hkl = np.load(dirpath + Num_method[1]+file_suffix + hkl_files[i].split('_')[-1])
     Rhos_hkl = data_hkl['Rho']
     Us_hkl = data_hkl['U']
     Us_hkl_new = np.zeros((Us_hkl.shape[0], Us_hkl.shape[1]-1))
-    rho_L2_norms = np.append(rho_L2_norms, l2_error(l2_error(Rhos_hkl-Rhos_rusanov, dx, 1), dts, 0))
+
+    Us_hkl_new_reduced = np.zeros((Us_rusanov.shape[0], Us_rusanov.shape[1]))
+    Rhos_hkl_reduced = np.zeros((Rhos_rusanov.shape[0], Rhos_rusanov.shape[1]))
 
     for i in range(Nt):
-        Us_hkl_new[i] = (Us_hkl[i] + shiftg(Us_hkl[i]))[0:Nvol]/2.
+        # Us_hkl_new[i] = (Us_hkl[i] + shiftg(Us_hkl[i]))[0:Nvol]/2.
+        if i % 2 == 0:
+            Us_hkl_new_reduced[i] = Us_hkl_new[i]
+            Rhos_hkl_reduced[i] = Rhos_hkl[i]
 
-    u_L2_norms = np.append(u_L2_norms, l2_error(l2_error(Us_hkl_new-Us_rusanov, dx, 1), dts, 0))
+    rho_L2_norms = np.append(rho_L2_norms, l2_error(l2_error(Rhos_hkl_reduced - Rhos_rusanov, dx, 1), dts, 0))
+    u_L2_norms = np.append(u_L2_norms, l2_error(l2_error(Us_hkl_new_reduced-Us_rusanov, dx, 1), dts, 0))
 
 hs = L/get_nsteps(rusanov_files)
 hs.sort()
@@ -210,16 +218,64 @@ plt.rcParams.update({'font.size': 15})
 
 plt.title('$L^2_t L^2_x$ error Hkl vs rusanov')
 plt.xlabel('$\Delta_x$')
-plt.ylabel('$\Vert \\rho_{hkl} - \\rho_{rus} \Vert_{L^2_t L^2_x}$')
-plt.plot(hs, rho_L2_norms[np.arange(Ntest - 1, -1, -1)], linewidth=3, label='$\\rho$')
+# plt.ylabel('$\Vert \\rho_{hkl} - \\rho_{rus} \Vert_{L^2_t L^2_x}$')
+# plt.plot(hs, rho_L2_norms[np.arange(Ntest - 1, -1, -1)], linewidth=3, label='$\\rho$')
+plt.plot(np.log(hs), rho_L2_norms[np.arange(Ntest - 1, -1, -1)], '*', linewidth=3, label='$\Vert \\rho_{hkl} - \\rho_{rus} \Vert_{L^2_t L^2_x}$', )
 
 
 plt.title('$L^2_t L^2_x$ error Hkl vs rusanov')
 plt.xlabel('$\Delta_x$')
-plt.ylabel('$\Vert u_{hkl} - u_{rus} \Vert_{L^2_t L^2_x}$')
-plt.plot(hs, u_L2_norms[np.arange(Ntest - 1, -1, -1)], linewidth=3, label='$u$')
+# plt.ylabel('$\Vert u_{hkl} - u_{rus} \Vert_{L^2_t L^2_x}$')
+# plt.plot(hs, u_L2_norms[np.arange(Ntest - 1, -1, -1)], linewidth=3, label='$u$')
+plt.plot(np.log(hs), u_L2_norms[np.arange(Ntest - 1, -1, -1)], 'o', linewidth=3, label='$\Vert u_{hkl} - u_{rus} \Vert_{L^2_t L^2_x}$')
 
 plt.legend()
+
+
+mesh = PeriodicGrid1D(dx, Nvol)
+x, = mesh.cellCenters
+x_faces = mesh.faceCenters
+
+plt.title('$\\rho$ Hkl vs $\\rho$ rusanov at t=0.1')
+plt.plot(x, Rhos_hkl[Nt -1], linewidth=3, label='$\\rho_{hkl}$')
+plt.plot(x, Rhos_rusanov[Nt-1], linewidth=3, label='$\\rho_{rus}$')
+plt.legend()
+
+
+# les inconnus
+# U_hkl = FaceVariable(name='$u$', mesh=mesh, value=0.)
+U_hkl = CellVariable(name='$u$', mesh=mesh, value=0.)
+# Rho0 = CellVariable(name='$\\rho$', mesh=mesh, value=0., hasOld=True)
+Rho_hkl = CellVariable(name='$\\rho_{hkl}$', mesh=mesh, value=0., hasOld=True)
+U_fig_hkl = CellVariable(name='$U_{hkl}$', mesh=mesh, value=0., hasOld=True)
+
+Rho_rusanov = CellVariable(name='$\\rho_{rus}$', mesh=mesh, value=0., hasOld=True)
+U_rusanov = CellVariable(name='$U_{rus}$', mesh=mesh, value=0., hasOld=True)
+
+sp1, axes = plt.subplots(1, 2)
+
+Rho_fig = Matplotlib1DViewer(vars=(Rho_hkl, Rho_rusanov), axes=axes[0], interpolation='spline16', datamax=1.5, figaspect='auto')
+
+u_fig = Matplotlib1DViewer(vars=(U_fig_hkl, U_rusanov), axes=axes[1], interpolation='spline16', figaspect='auto')
+
+viewers = MultiViewer(viewers=(Rho_fig, u_fig))
+
+for i in range(Nt):
+    Rho_hkl.setValue(Rhos_hkl[i])
+    U_hkl.setValue(Us_hkl_new[i])
+    U_fig_hkl.setValue((U_hkl + shiftg(U_hkl))[0:Nvol] / 2.)
+    # U_fig_hkl.setValue(Us_hkl_new_reduced[i])
+
+    Rho_rusanov.setValue(Rhos_rusanov[i])
+    U_rusanov.setValue(Us_rusanov[i])
+
+    viewers.plot()
+    plt.title("HKL vs Rusanov. tps={0}".format(str(round(t[i], 2))))
+
+    # if i % 50 == 0:
+    #     plt.savefig(test_dir_path+'hkl_vs_rusanov_test_new_tps{0}.png'.format(i))
+    # plt.close()
+
 # --------------------------------------L2 error---------------------------------------
 # error_l2 = l2_error(Rhos_hkl-Rhos_rusanov[1:Nt+1], dx, 1)
 # error_l1 = l1_error(Rhos_hkl-Rhos_rusanov[1:Nt+1], dx, 1)

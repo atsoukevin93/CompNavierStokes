@@ -3,7 +3,7 @@
 
 from fipy import *
 import numpy as np
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
 from scipy.optimize import newton
@@ -12,62 +12,26 @@ from ToolBox import *
 # import rusanov.Rusanov as Ru
 from Diffusion1D import *
 import time
+import os
+from multiprocessing import Pool
+from multiprocessing import Process
 
 
-# Paramètre du maillage 1D
-L = 1.0
-nx =90000
-dx = L / nx
+# rho=Rho.value
+# U1=U.value
 
 
-# Construction du maillage
-mesh = PeriodicGrid1D(dx, nx)
-
-
-# Données du maillage
-# Centres des mailles
-x, = mesh.cellCenters
-
-
-# Nombre de volumes, nombre de faces
-Nvol = mesh.numberOfCells
-nFaces = mesh.numberOfFaces
-
-
-# Faces associées aux cellules (en périodique)
-FacesCells = mesh.faceCellIDs
-
-
-# Paramètre p(rho)=c*rho^{gamma}
-c = 1.
-gamma = 2.
-
-# les inconnus
-U = FaceVariable(name='$u$', mesh=mesh, value=0.)
-Rho = CellVariable(name='$\\rho$', mesh=mesh, value=1., hasOld=True)
-
-# Donnée initiale sur rho
-Rho.setValue(1., where=x >= 0.7)
-Rho.setValue(1., where=x <= 0.5)
-Rho.setValue((np.sqrt(2.))**(1./gamma), where=(x >= 0.5) & (x <= 0.7))
-
-
-
-rho=Rho.value
-U1=U.value
-
-
-U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
+# U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
 
 
 # Rho1.setValue(np.exp(-(x-0.5)**2)+0.3)
 
 def mu_rho(rho):
     N=len(rho)
-    return 0.001*rho
+    return 0.01*rho
 
 
-def Explicit_Staggered(rho, U1, dt, dx):
+def Explicit_Staggered(rho, U1, c, gamma, dt, dx):
     N = len(rho)
     # equation de consevation de la masse
     Diag0_tr=pplus(U1[1:N+1])-pminus(U1[0:N])
@@ -138,6 +102,7 @@ def Explicit_Staggered(rho, U1, dt, dx):
 
     return Rho_new, U_new
 
+
 def test_transport(rho, U1, dt, dx):
     N = len(rho)
     # equation de consevation de la masse
@@ -151,28 +116,108 @@ def test_transport(rho, U1, dt, dx):
     return Rho_new
 
 
-# Boucle en temps
-dt1 = 1e-5
-duration = 1
-Nt = int(duration / dt1) + 1
-dt = dt1
-tps = 0.
+def test_exe(ny):
+    # Paramètre du maillage 1D
+    L = 1.0
+    nx = ny
+    dx = L / nx
 
-sp1, axes = plt.subplots(1,2)
+    # Construction du maillage
+    mesh = PeriodicGrid1D(dx, nx)
 
-Rho_fig = Matplotlib1DViewer(vars=Rho, axes=axes[0], interpolation='spline16', datamax = 1.5, figaspect='auto')
+    # Données du maillage
+    # Centres des mailles
+    x, = mesh.cellCenters
 
-u_fig = Matplotlib1DViewer(vars=U_fig, axes=axes[1], interpolation='spline16', figaspect='auto')
+    # Nombre de volumes, nombre de faces
+    Nvol = mesh.numberOfCells
+    nFaces = mesh.numberOfFaces
 
-viewers = MultiViewer(viewers=(Rho_fig, u_fig))
+    # Faces associées aux cellules (en périodique)
+    FacesCells = mesh.faceCellIDs
 
-while tps <= duration:
-    Rho_new , U_new = Explicit_Staggered(Rho.value, U.value, dt, dx)
-    # Rho_new = test_transport(Rho.value, U.value, dt, dx)
-    Rho.setValue(Rho_new)
-    U.setValue(U_new)
-    U_fig.setValue((U + shiftg(U))[0:Nvol]/2)
-    print('U_new: ', U_new)
-    print('Rho_new: ', Rho_new)
-    tps = tps + dt
-    viewers.plot()
+    # Paramètre p(rho)=c*rho^{gamma}
+    c = 1.
+    gamma = 2.
+
+    # les inconnus
+    U = FaceVariable(name='$u$', mesh=mesh, value=0.)
+    Rho = CellVariable(name='$\\rho$', mesh=mesh, value=1., hasOld=True)
+
+    # Donnée initiale sur rho
+    Rho.setValue(1., where=x >= 0.7)
+    Rho.setValue(1., where=x <= 0.5)
+    Rho.setValue((np.sqrt(2.)) ** (1. / gamma), where=(x >= 0.5) & (x <= 0.7))
+
+    # U_fig = CellVariable(name='$U$', mesh=mesh, value=0., hasOld=True)
+
+    # Boucle en temps
+    dt1 = 1e-6
+    duration = 0.1
+    Nt = int(duration / dt1) + 1
+    dt = dt1
+    tps = 0.
+    #
+    # sp1, axes = plt.subplots(1,2)
+    #
+    # Rho_fig = Matplotlib1DViewer(vars=Rho, axes=axes[0], interpolation='spline16', datamax = 1.5, figaspect='auto')
+    #
+    # u_fig = Matplotlib1DViewer(vars=U_fig, axes=axes[1], interpolation='spline16', figaspect='auto')
+    #
+    # viewers = MultiViewer(viewers=(Rho_fig, u_fig))
+
+    test_case_results = np.empty([], dtype=[('t', np.float64),
+                                            ('dt', np.float64),
+                                            ('dx', np.float64),
+                                            ('Rho', np.float64, (Nvol,)),
+                                            ('U', np.float64, (nFaces,))])
+    test_case_results = np.delete(test_case_results, 0)
+
+    n = 0
+    while tps <= duration:
+        if n % 2 == 0:
+            test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, Rho, U), dtype=test_case_results.dtype))
+
+        Rho_new , U_new = Explicit_Staggered(Rho.value, U.value, c, gamma, dt, dx)
+        # Rho_new = test_transport(Rho.value, U.value, dt, dx)
+        Rho.setValue(Rho_new)
+        U.setValue(U_new)
+        # U_fig.setValue((U + shiftg(U))[0:Nvol]/2)
+        print('U_new: ', U_new)
+        print('Rho_new: ', Rho_new)
+        tps = tps + dt
+        n = n + 1
+        # viewers.plot()
+    dirpath = "data/"
+    filename = "Staggered_NS_test_"+str(nx)
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath)
+
+    with open(dirpath+filename, "wb") as fi:
+        np.save(fi, test_case_results)
+        # np.save(fi, TestCaseParam)
+        fi.close()
+
+
+def test_process(param_to_test):
+    # nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000]
+    # nxs = [1000, 5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000]
+    # nxs = [100, 200, 300, 400, 500, 600, 700, 800, 900, 2000, 3000, 4000, 6000, 7000, 8000, 9000]
+    nxs = np.concatenate([np.arange(100, 1000, 100), np.arange(1000, 10000, 1000), np.arange(10000, 80000, 5000)]).tolist()
+    # nxs = [7000]
+    print('--------------------TEST CASE: ' + str(nxs[param_to_test]) + ' -------------------------')
+    print('Processus: {0}'.format(os.getpid()))
+    test_exe(nxs[param_to_test])
+
+
+if __name__ == '__main__':
+    numbers = np.arange(0, 32, 1)
+    # [, 4, 5, 6, 7, 8, 9, 10]
+    # numbers = [0]
+    procs = []
+    for index, number in enumerate(numbers):
+        proc = Process(target=test_process, args=(number,))
+        procs.append(proc)
+        proc.start()
+    for proc in procs:
+        proc.join()

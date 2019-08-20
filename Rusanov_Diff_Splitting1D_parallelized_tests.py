@@ -63,14 +63,6 @@ def mu_Rho(rho,k):
     return k*rho
 
 
-def test_process(param_to_test):
-    # nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000]
-    nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 60000, 100000]
-    print('--------------------TEST CASE: ' + str(nxs[param_to_test]) + ' -------------------------')
-    print('Processus: {0}'.format(os.getpid()))
-    test_exe(nxs[param_to_test])
-
-
 def test_exe(ny):
     # Parametre du maillage 1D
     L = 1.0
@@ -123,7 +115,6 @@ def test_exe(ny):
     # test_case_results = np.append(test_case_results, np.asarray((tps, dt, dx, U1, U2/U1), dtype=test_case_results.dtype))
     n=0
     while tps <= duration:
-
         if U1.value.any() < 0.:
             break
 
@@ -140,7 +131,8 @@ def test_exe(ny):
         Diff = Build_Diffusion_Matrix(nVol, phi_Rho_star, dx)
 
         # Calcul du vecteur des vitesses dans la deuxieme etape du splitting
-        U_ustar_new = splin.spsolve(Id - (dt/dx)*Diff, Ustar[1]/Ustar[0])
+        diag_rhostar = sp.lil_matrix(sp.spdiags([Ustar[0]], [0], nVol, nVol))
+        U_ustar_new = splin.spsolve(diag_rhostar - (dt / dx) * Diff, Ustar[1])
 
         # U_ustar_new = U
         U1.setValue(Ustar[0])
@@ -169,10 +161,22 @@ def test_exe(ny):
         fi.close()
 
 
+def test_process(param_to_test):
+    # nxs = [100, 200, 300, 400, 500, 600, 700, 800, 900, 2000, 3000, 4000, 6000, 7000, 8000, 9000]
+    nxs = np.concatenate([np.arange(100, 1000, 100), np.arange(1000, 10000, 1000), np.arange(10000, 80000, 5000)]).tolist()
+    # nxs = [100, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 60000, 100000]
+    # nxs = [1000, 5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000]
+    # nxs = [7000]
+    print('--------------------TEST CASE: ' + str(nxs[param_to_test]) + ' -------------------------')
+    print('Processus: {0}'.format(os.getpid()))
+    # print('HIHIH',nxs[param_to_test])
+    test_exe(nxs[param_to_test])
+
+
 if __name__ == '__main__':
-    numbers = np.arange(0, 16, 1)
+    numbers = np.arange(0, 32, 1)
     # [, 4, 5, 6, 7, 8, 9, 10]
-    # numbers = [5, 6, 7]
+    # numbers = [1]
     procs = []
     for index, number in enumerate(numbers):
         proc = Process(target=test_process, args=(number,))

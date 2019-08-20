@@ -1,6 +1,6 @@
 from fipy import *
 import numpy as np
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 import scipy.sparse as sp;
 import scipy.sparse.linalg as splin;
 from ToolBox import *
@@ -10,7 +10,7 @@ import os
 
 # Paramètre du maillage 1D
 L = 1.0
-nx =1000
+nx =90000
 dx = L / nx
 
 
@@ -53,13 +53,13 @@ U1.setValue((np.sqrt(2.))**(1./gamma), where=(x > 0.5) & (x < 0.7))
 
 
 # Paramètres graphiques
-# sp1, axes = plt.subplots(1, 2)
-#
-# Rho = Matplotlib1DViewer(vars=U1, axes=axes[0], interpolation='spline16', figaspect='auto')
-#
-# Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], interpolation='spline16', figaspect='auto')
-#
-# viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
+sp1, axes = plt.subplots(1, 2)
+
+Rho = Matplotlib1DViewer(vars=U1, axes=axes[0], interpolation='spline16', figaspect='auto')
+
+Rho_u_Rho = Matplotlib1DViewer(vars=U2/U1, axes=axes[1], interpolation='spline16', figaspect='auto')
+
+viewers = MultiViewer(viewers=(Rho, Rho_u_Rho))
 
 #Rusanov
 
@@ -104,7 +104,7 @@ def mu_Rho(rho,k):
 
 # Boucle en temps
 dt1 = 1e-6
-duration = 1.5
+duration = 0.1
 Nt = int(duration / dt1) + 1
 dt = dt1
 tps = 0.
@@ -137,7 +137,8 @@ while tps <= duration:
     Diff = Build_Diffusion_Matrix(nVol, phi_Rho_star, dx)
 
     # Calcul du vecteur des vitesses dans la deuxieme etape du splitting
-    U_ustar_new = splin.spsolve(Id - (dt/dx)*Diff, Ustar[1]/Ustar[0])
+    diag_rhostar = sp.lil_matrix(sp.spdiags([Ustar[0]], [0], nVol, nVol))
+    U_ustar_new = splin.spsolve(diag_rhostar - (dt / dx) * Diff, Ustar[1])
 
     # U_ustar_new = U
     U1.setValue(Ustar[0])
@@ -153,7 +154,7 @@ while tps <= duration:
     # if np.isnan(dt):
     #     break
     n = n + 1
-    # viewers.plot()
+    viewers.plot()
 
 # dirpath = "data/"
 # filename = "rusanov_splitting_test_new"

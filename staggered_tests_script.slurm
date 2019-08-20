@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH -J hkl_job
+#SBATCH -J staggered_job
 #SBATCH -p skylake
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=32
@@ -13,5 +13,4 @@
 module purge
 module load userspace/all
 module load python3/3.6.3
-python3 HKL_parallelized_tests.py
-
+python3 Explicit_staggered_scheme_JJ_parallelized_tests.py
